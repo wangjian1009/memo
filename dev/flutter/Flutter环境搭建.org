@@ -1,0 +1,22 @@
+#+TITLE: Flutter开发环境的搭建
+
+
+** 把.pub-cache/bin加入PATH
+
+- windows :: 
+#+BEGIN_SRC 
+C:\Users\<your-username>\AppData\Roaming\Pub\Cache\bin
+#+END_SRC
+
+- mac或linux :: 
+#+BEGIN_SRC 
+$~/.pub-cache/bin
+#+END_SRC
+
+** Web开发环境搭建
+
+https://flutter.dev/docs/get-started/web
+
+#+BEGIN_SRC 
+flutter config --enable-web
+#+END_SRC

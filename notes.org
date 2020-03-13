@@ -1,0 +1,89 @@
+#+TITLE: 快速收集任务
+:PROPERTIES:
+#+SEQ_TODO: TODO(t!) NEXT(n) WAITTING(w) SOMEDAY(s) INPROGRESS(p) | DONE(d@/!) ABORT(a@/!)
+#+TAGS:
+#+TAGS: PROJECT(p) REQUIREMENT(r) BUG(b) VERSION(v)
+#+STARTUP: content
+#+STARTUP: hidestars
+#+STARTUP: indent
+#+CATEGORY: 收件箱
+#+ARCHIVE: archive/个人任务归档.org_archive::
+:END:
+
+* Tasks
+** TODO [[../ledger/2019.ledger][完成2019年账务]]
+** TODO 平 来往:张绮
+:PROPERTIES:
+:ID:       213C122E-4B3E-4CE5-9DA3-69A6EDCCC27F
+:END:
+  [2020-01-22 Wed]
+  [[file:~/workspace/ledger/2019.ledger::%E6%9D%A5%E5%BE%80:%E5%BC%A0%E7%BB%AE]]
+* 备忘信息
+** [[http://61.147.183.83:30080/][SFOX项目-WEB]]
+** [[http://gitlab.adups.com/VProject/Common-Documents][SFOX文档和问题库]]
+** [[/ssh:guanggao@129.226.118.159#5022:/home/guanggao/workspace/Shadowfox-libev][矿机调试环境]]
+** [[/ssh:gs_sysop@61.147.183.83#5022:/data/docker_jenkins/jenkins_home/workspace/upload_miner_package][Jenkins主节点]]
+** [[/ssh:star@172.16.30.17:/home/star/workspace][少星的开发环境]]
+** [[/ssh:admin@192.168.1.20:/][家庭路由器]]
+** [[~/workspace/problem-mgr/server][开发问题管理]]
+
+* 近期任务                                                           :REFINE:
+:PROPERTIES:
+:ID:       839BDE95-BF7D-4F17-97DF-FCFBA810EB75
+:END:
+** TODO 研究好DAP的使用方法，可以在crash后在文件中导航
+  [2020-03-11 Wed]
+** TODO 创建OS X自带虚拟机引擎的docker machine
+  [2020-03-13 Fri]
+** TODO 给Mac字典添加中英字典
+:PROPERTIES:
+:ID:       50C2CE00-BB0B-45EE-8127-0EC4953AB543
+:END:
+  [2020-01-14 Tue]
+
+** [#B] [2/6] 邮箱环境搭建完整
+*** TODO 组织好邮箱的目录结构
+:PROPERTIES:
+:ID:       22AE6E7E-B721-4DCA-B851-BBD9489D5FEA
+:END:
+   [2020-01-11 Sat]
+   [[info:dir#Top][info:dir#Top]]
+*** TODO 邮箱配置好自动清理规则
+:PROPERTIES:
+:ID:       EB28C8BF-6D2C-432F-B96B-E91AADD916E1
+:END:
+   [2020-01-11 Sat]
+   [[info:dir#Top][info:dir#Top]]
+*** DONE 将现有的通讯录导入到BBDB中
+- State "DONE"       from "INPROGRESS"      [2020-01-13 Mon 08:55] \\
+  通过bbdb导入现有联系人
+*** DONE 整理RSS信息到新的邮件系统
+:PROPERTIES:
+:ID:       7F33A2CF-8D02-437B-830C-2E18657273FA
+:END:
+- State "DONE"       from "TODO"       [2020-01-28 Tue 09:44]
+   [2020-01-11 Sat]
+   [[file:~/.rss.opml::<?xml%20version="1.0"%20encoding="UTF-8"?>]]
+*** TODO 能够从邮件中添加新的联系人
+:PROPERTIES:
+:ID:       FA9730BE-38D0-498B-8094-D44653FB5FE5
+:END:
+- State "TODO"       from              [2020-01-15 Wed 11:05]
+*** TODO Emacs邮箱能够自动检测更新并提示
+:PROPERTIES:
+:ID:       7238FA79-AA84-40B0-8E27-B84B9B9DE4FC
+:END:
+- State "TODO"       from              [2020-01-12 Sun 19:30]
+* 开发文档
+** [[./dev/emacs/emacs.org][Emacs]]
+** [[./dev/flutter/Flutter.org][Flutter]]
+** [[./dev/typescript/Typescript.org][Typescript]]
+** [[./dev/sql/sql.org][SQL]]
+* 下一步
+** NEXT 研究一下Emacs脑图的使用方法
+:PROPERTIES:
+:ID:       4A252CB1-28C7-4A9D-B0AE-1DCA99313419
+:END:
+   [2020-01-11 Sat]
+   [[info:org#Top][info:org#Top]]
+* 将来/也许

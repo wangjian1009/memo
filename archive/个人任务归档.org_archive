@@ -1,0 +1,95 @@
+#    -*- mode: org -*-
+#+TITLE: 个人任务归档
+:PROPERTIES:
+#+SEQ_TODO: TODO(t!) NEXT(n) WAITTING(w) SOMEDAY(s) INPROGRESS(p) | DONE(d@/!) ABORT(a@/!)
+#+STARTUP: content
+:END:
+
+
+Archived entries from file /Users/wangjian/workspace/org/personal.org
+
+
+* DONE 将现有环境中的私人配置文件统一通过github管理起来
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2020-02-05 Wed 22:46
+  :ARCHIVE_FILE: ~/workspace/org/personal.org
+  :ARCHIVE_OLPATH: 近期任务
+  :ARCHIVE_CATEGORY: Personal
+  :ARCHIVE_TODO: DONE
+  :END:
+- State "DONE"       from "TODO"       [2020-01-11 Sat 22:41] \\
+  通过子目录+链接完成
+   [2020-01-11 Sat]
+
+Archived entries from file /Users/wangjian/workspace/org/personal.org
+
+
+* DONE OrgMode关闭Project、Requirement等Tag的继承
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2020-02-05 Wed 22:46
+  :ARCHIVE_FILE: ~/workspace/org/personal.org
+  :ARCHIVE_OLPATH: 近期任务
+  :ARCHIVE_CATEGORY: Personal
+  :ARCHIVE_TODO: DONE
+  :END:
+- State "DONE"       from "TODO"       [2020-01-11 Sat 22:51]
+   [2020-01-11 Sat]
+   [[info:org#Tag%20inheritance][info:org#Tag inheritance]]
+
+* ABORT org-caldav 在导出列表为空时，默认会同步到上一次的输出
+  :PROPERTIES:
+  :ID:       F424B040-BCFA-4179-87D0-29D73E707D6B
+  :ARCHIVE_TIME: 2020-02-10 Mon 09:25
+  :ARCHIVE_FILE: ~/workspace/org/notes.org
+  :ARCHIVE_OLPATH: 近期任务
+  :ARCHIVE_CATEGORY: 收件箱
+  :ARCHIVE_TODO: ABORT
+  :END:
+- State "ABORT"      from "TODO"       [2020-02-10 Mon 09:11] \\
+  增加了任务以后现象消失
+  [2020-01-20 Mon]
+  [[file:~/workspace/org-caldav/org-caldav.el::(setq%20buffer%20(current-buffer))]]
+
+* DONE 在Mocha测试用例结束后能够自动停止
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2020-03-07 Sat 11:08
+  :ARCHIVE_FILE: ~/workspace/org/notes.org
+  :ARCHIVE_OLPATH: Tasks
+  :ARCHIVE_CATEGORY: 收件箱
+  :ARCHIVE_TODO: DONE
+  :END:
+- State "DONE"       from "TODO"       [2020-03-07 Sat 11:08]
+  [2020-02-09 Sun]
+  [[file:~/workspace/problem-mgr/server/test/site.test.ts::.send({]]
+
+* [#A] [4/4] 设计一个项目任务管理的方法
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2020-03-13 Fri 11:57
+  :ARCHIVE_FILE: ~/workspace/org/notes.org
+  :ARCHIVE_OLPATH: 近期任务
+  :ARCHIVE_CATEGORY: 收件箱
+  :END:
+** DONE [#A] Emacs中正常发送带有html的邮件
+- State "DONE"       from "TODO"       [2020-01-12 Sun 18:54] \\
+  切换为wl发送邮件后问题消失
+[2020-01-11 Sat]
+** ABORT 通过 Org Super Agent 将每日任务输出更清楚
+   :PROPERTIES:
+   :ID:       D082782B-0279-4880-9B04-FC51F27CA4CF
+   :END:
+- State "ABORT"      from "TODO"       [2020-03-13 Fri 11:54] \\
+  通过网页展示，这个不需要了
+[2020-01-11 Sat]
+** ABORT Emacs中通过群组发送邮件
+   :PROPERTIES:
+   :ID:       64FBDB06-C9DD-4E05-98DB-2E46D73438D9
+   :END:
+- State "ABORT"      from "INPROGRESS" [2020-01-28 Tue 09:44] \\
+  没有直接的支持方法
+[2020-01-11 Sat]
+** DONE 打通基于项目的ORG文件给其他同事发布的流程
+   :PROPERTIES:
+   :ID:       46E41105-0621-4A81-92A4-4E64D9FFDD13
+   :END:
+- State "DONE"       from "TODO"       [2020-03-13 Fri 11:54]
+[2020-01-11 Sat]

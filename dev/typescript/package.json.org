@@ -1,0 +1,146 @@
+#+TITLE:package.json文件说明解释
+#+STARTUP: showall
+
+** package.json是什么？
+什么是Node.js的模块（Module）？在Node.js中，模块是一个库或框架，也是一个Node.js项目。
+Node.js项目遵循模块化的架构，当我们创建了一个Node.js项目，意味着创建了一个模块，这个模块的描述文件，被称为package.json。
+通常情况下package.json内容出错，会导致项目出现bug，甚至阻止项目的运行。
+
+下面是normalize包的package.json文件:
+#+BEGIN_SRC json
+{
+  "name": "normalize.css",
+  "version": "3.0.3",
+  "description": "Normalize.css as a node packaged module",
+  "style": "normalize.css",
+  "files": [
+    "LICENSE.md",
+    "normalize.css"
+  ],
+  "homepage": "http://necolas.github.io/normalize.css",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/necolas/normalize.css.git"
+  },
+  "main": "normalize.css",
+  "author": {
+    "name": "Nicolas Gallagher"
+  },
+  "license": "MIT",
+  "gitHead": "2bdda84272650aedfb45d8abe11a6d177933a803",
+  "bugs": {
+    "url": "https://github.com/necolas/normalize.css/issues"
+  },
+  "_id": "normalize.css@3.0.3",
+  "scripts": {},
+  "_shasum": "acc00262e235a2caa91363a2e5e3bfa4f8ad05c6",
+  "_from": "normalize.css@3.0.3",
+  "_npmVersion": "2.7.0",
+  "_nodeVersion": "0.10.35",
+  "_npmUser": {
+    "name": "necolas",
+    "email": "nicolasgallagher@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "tjholowaychuk",
+      "email": "tj@vision-media.ca"
+    },
+    {
+      "name": "necolas",
+      "email": "nicolasgallagher@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "acc00262e235a2caa91363a2e5e3bfa4f8ad05c6",
+    "tarball": "https://registry.npmjs.org/normalize.css/-/normalize.css-3.0.3.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/normalize.css/-/normalize.css-3.0.3.tgz",
+  "readme": "ERROR: No README data found!"
+}
+#+END_SRC
+
+** package.json属性说明
+- name :: 包名.
+- version :: 包的版本号。
+- description :: 包的描述。
+- homepage :: 包的官网URL。
+- author :: 包的作者，它的值是你在https://npmjs.org网站的有效账户名，遵循“账户名<邮件>”的规则，例如：zhangsan <zhangsan@163.com>。
+- contributors :: 包的其他贡献者。
+- dependencies / devDependencies :: 生产/开发环境依赖包列表。它们将会被安装在 node_module 目录下。
+- repository :: 包代码的Repo信息，包括type和URL，type可以是git或svn，URL则是包的Repo地址。
+- main :: main 字段指定了程序的主入口文件，require('moduleName') 就会加载这个文件。这个字段的默认值是模块根目录下面的 index.js。
+- keywords :: 关键字
+  
+上述参数是极为常见的参数，另外还可以设置script、license等等。除了官方必须的一些参数外，我们也可以存储我们自己的关于模块的描述信息在package.json。
+
+** 生成package.json文件
+
+我们可以使用NPM生成package.json文件，它可以包含最基本的设置以及结果。
+
+#+BEGIN_SRC bash
+$ npm init
+
+This utility will walk you through creating a package.json file.
+It only covers the most common items, and tries to guess sensible defaults.
+
+See `npm help json` for definitive documentation on these fields
+and exactly what they do.
+
+Use `npm install <pkg> --save` afterwards to install a package and
+save it as a dependency in the package.json file.
+Press ^C at any time to quit.
+name: (node_modules) runoob                   # 模块名
+version: (1.0.0) 
+description: Node.js 测试模块(www.runoob.com)  # 描述
+entry point: (index.js) 
+test command: make test
+git repository: https://github.com/runoob/runoob.git  # Github 地址
+keywords: 
+author: 
+license: (ISC) 
+About to write to ……/node_modules/package.json:      # 生成地址
+
+{
+  "name": "runoob",
+  "version": "1.0.0",
+  "description": "Node.js 测试模块(www.runoob.com)",
+  ……
+}
+
+Is this ok? (yes) yes
+#+END_SRC
+
+这样就生成了一个最基本的package.json文件，注意手动更改的时候要完全遵循严格的JSON书写格式，否则容易出现意想不到的简单错误。
+
+** 关于版本号的描述
+npm模块的完整的版本号一般是【主版本 . 次要版本 . 补丁版本】，一般情况下，次要版本号发生改变的话，表示程序有重大更新。
+
+*** 使用~表示版本范围
+这里大概可以如此概述：
+1. 补丁版本号缺失，则允许补丁版本号升级；
+2. 次要版本号+补丁版本号缺失，则允许次要版本号+补丁版本号升级。
+
+标识示例描述版本范围说明~2.3.4主版本+次要版本+补丁版本2.3.4 <= version < 2.4.0在主版本+次要版本不允许变更的前提下，允许补丁版本升级（补丁板板号下限是4，无上限）。~2.3主版本+次要版本2.3.0 <= version < 2.4.0在主版本+次要版本不允许变更的前提下，允许补丁版本升级。~2主版本2.0.0 <= version < 3.0.0在主版本不允许变更的前提下，允许次要版本+补丁版本升级。
+
+*** 使用^表示版本范围
+
+这里大概可以如此概述：
+1. 若主版本号不为0，则允许次要版本号+补丁版本号升级；
+2. 若主版本号为0，次要版本号不为0，则允许补丁版本号升级；
+3. 若主版本号+次要版本号皆为0，将无法升级模块；
+4. 若主版本不为0，补丁版本缺失（将被视作0），那么将允许次要版本+补丁版本升级到到最新；
+5. 若主版本为0，补丁版本缺失（将被视作0），那么允许补丁版本升级到最新；
+6. 若次要版本+补丁版本均缺失，此时补丁版本,被视作1，那么将允许次要版本+补丁版本升级到最新。
+
+标识示例描述版本范围说明^1.3.4主版本号不为01.3.4 <= version < 2.0.0主版本不为0，允许次要版本+补丁版本升级（此例下限是1.3.4，上线是2.0.0但不匹配2.0.0）^0.2.3主版本号为0，次要版本号不为00.2.3 <= version < 0.3.0主版本为0，次要版本不为0，允许补丁版本升级（此例下限是0.2.3，上限是0.3.0但不匹配0.3.0）^0.0.3主版本号+次要版本号均为00.0.3 <= version < 0.0.4主版本号+次要版本号均为0，无法升级模块^1.3主版本不为0，补丁版本缺失1.3.0 <= version < 2.0.0主版本不为0，补丁版本因缺失被视作0，允许次要版本+补丁版本升级到到最新（此例下限是1.3.0，上线是2.0.0但不匹配2.0.0）^0.2主版本为0，补丁版本缺失0.2.0 <= version < 0.3.0主版本为0，补丁版本因缺失被视作0，允许补丁版本升级到最新（此例下限是0.2.0，上限是0.3.0但不匹配0.3.0）^1主版本号不为0，次要版本+补丁版本均缺失1.0.0 <= version < 2.0.0主版本不为0，次要版本+补丁版本因缺失被视作0，允许次要版本+补丁版本升级（此例下限是1.0.0，上线是2.0.0但不匹配2.0.0）^0主版本号为0，次要版本+补丁版本均缺失0.0.1 <= version < 1.0.0主版本为0，次要版本因缺失被视作0，补丁版本虽缺失但只能被视作1，允许缺失的次要版本+补丁版本升级到最新（此例下限是0.0.1，上限是1.0.0但不匹配1.0.0）
+
+*** 语义版本号
+使用NPM下载和发布代码时都会接触到版本号。NPM使用语义版本号来管理代码，这里简单介绍一下。
+语义版本号分为X.Y.Z三位，分别代表主版本号、次版本号和补丁版本号。当代码变更时，版本号按以下原则更新。
+1. 如果只是修复bug，需要更新Z位。
+2. 如果是新增了功能，但是向下兼容，需要更新Y位。
+3. 如果有大变动，向下不兼容，需要更新X位。
+
+版本号有了这个保证后，在申明第三方包依赖时，除了可依赖于一个固定版本号外，还可依赖于某个范围的版本号。例如"argv": "0.0.x"表示依赖于0.0.x系列的最新版argv。

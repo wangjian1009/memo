@@ -1,0 +1,6 @@
+- [[https://mirror.tuna.tsinghua.edu.cn/help/elpa/][Emacs包管理的清华镜像]]
+
+- [[https://github.com/howardabrams/dot-files/blob/master/emacs-eshell.org][EShell使用]]
+- https://github.com/howardabrams/dot-files
+- http://pages.sachachua.com/evil-plans/  思维导图例子，包含便利OrgMode结构的例子
+- [[./emacs_org_table.org][Org表格操作]]
