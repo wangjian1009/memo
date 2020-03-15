@@ -1,8 +1,16 @@
+#+TITLE: Emacs相关信息收集
+
+** 重要信息
 - [[https://mirror.tuna.tsinghua.edu.cn/help/elpa/][Emacs包管理的清华镜像]]
 
+** 使用指南
 - [[https://github.com/howardabrams/dot-files/blob/master/emacs-eshell.org][EShell使用]]
 - https://github.com/howardabrams/dot-files
 - http://pages.sachachua.com/evil-plans/  思维导图例子，包含便利OrgMode结构的例子
 - [[./emacs_org_table.org][Org表格操作]]
 - [[./emacs_wanderlust.org][邮件操作]]
 - [[./emacs_dap.org][Dap模式]]
+
+** 参考信息
+- https://github.com/zamansky/dot-emacs
+- Centaur Emacs :: https://github.com/seagle0128/.emacs.d
