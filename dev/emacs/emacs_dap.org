@@ -1,0 +1,18 @@
+#+TITLE: Emacs dap-mode的使用
+:PROPERTIES:
+#+STARTUP: content
+:END:
+
+** 安装c++调试环境
+
+#+begin_src emacs-lisp :tangle yes
+(dap-gdb-lldb-setup)
+#+end_src
+
+这个命令会自动下载安装到 
+.emacs.d/.extension/vscode/webfreak.debug
+
+这个需要 lldb-mi 程序
+
+可以从vscode的c++包中找到
+

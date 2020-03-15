@@ -1,0 +1,160 @@
+#+title: WanderLust模式使用操作
+:PROPERTIES:
+#+STARTUP: content
+:END:
+
+** 配置收信方式
+
+- % :: IMAP 信箱，
+- . :: 本地 MailDir 格式的信箱
+- & :: POP 信箱
+
+** 邮件列表界面操作
+*** 操作
+- <SPC> :: 阅读邮件(下一封)
+- . :: 阅读邮件(当前邮件重新显示)
+- < :: 移动到顶部
+- > :: 移动到最后
+- <BS>/<DEL> :: 邮件内容 向上翻页
+- <RET> :: 邮件内容 向下一行  
+- -/M-<RET> :: 邮件内容 向上一行
+- / :: 收起/展开 当前邮件树
+- [\/] :: 展开/关闭 全部邮件树
+- g :: 去其他邮箱 以及执行的操作
+- c :: 全部标记为已读
+- a :: 回复 (不带原文)
+- A :: 回复 (带原文)
+- E :: 重新编辑 草稿
+- f :: 转发
+- $ :: 标记为重要邮件 (Toggle)
+- F :: 通过minibuffer设定标记
+- y/e :: 邮件另存为
+- w :: 写新邮件
+- W :: 写新邮件（自动填写部分字段）
+- H :: 显示/隐藏 部分邮件头部字段
+- M :: 切换邮件显示模式 【原文/MIME】
+- B :: 
+     If the message at current cursor point has encapsulates multiple
+     messages using MIME, de-capsulate and extract them on the current
+     folder.  If it is invoked in non-writable folder or it is called
+     with prefix argument, it asks the destination folder.
+     ('wl-summary-burst')
+- @ :: 增加/修改/删除 发送者信息 在 **自带地址簿**
+- Z :: 同步 **自带地址簿** 信息
+- \| :: 发送邮件内容给外部程序，并显示结果在新的buffer中
+- \# :: 打印邮件
+- q :: 退出Summary，回到邮箱界面
+- j :: 将光标移动到当前正在阅读的邮件缓存中
+- I :: 预下载所有邮件
+- M-j :: 将光标跳转到指定的消息 (Message-Id)
+- ^ :: 光标跳转到父消息
+- ! :: 标记为 未阅读 状态
+- s :: 同步
+- S :: 排序
+- T :: 切换邮件显示方式 按线索显示 {T}  或者不按线索显示 {S}
+- l :: 打开/关闭 邮箱列表窗口
+v :: 打开/关闭 邮件内容窗口
+V :: 进入过滤窗口, C-u 前缀退出
+
+<TAB> :: 跳转到最后阅读的消息
+
+'?'
+     Put '*' mark on the messages that satisfies the specified
+     condition.  If messages already have '*' mark, new '*' marks are
+     overridden.  If prefix argument is specified, current '*' marks are
+     removed and new '*' marks are appended.
+
+     ('wl-summary-pick')
+
+R :: 当前邮件标记为已读
+x :: 执行标记好的操作
+
+'*'
+     Put target mark on the message at the current cursor point.
+     ('wl-summary-target-mark-line') *Note Mark and Action::.
+
+
+C-o :: 更具自动规则重组织邮件 （移动邮件）
+
+o :: 移动邮件
+O :: 拷贝邮件
+
+'M-o'
+     Put refile mark on the message at the current cursor point with the
+     destination previously specified.
+     ('wl-summary-refile-prev-destination')
+
+'U'
+     Unmark all the temporal marks.  ('wl-summary-unmark-all')
+
+'r ' :: 针对选择的区域内邮件执行命令的前缀
+'t ' :: 针对邮件树的命令前缀
+
+M-t :: 切换 **离线状态**
+C-t :: 打开 **离线状态** 的管理界面
+C-c C-o :: 跳转到 草稿 窗口
+
+'M-w'
+     Save the message at the current cursor point.
+     ('wl-summary-save-current-message')
+
+'C-y'
+     Regard the message at the current cursor point as parent, connect
+     the message saved by 'wl-summary-save-current-message' to the
+     thread.  ('wl-summary-yank-saved-message')
+C-x C-s :: 当前的Summary信息存成文件
+
+*** 临时标签
+临时标签用户执行邮件操作
+
+- \* :: 临时标记, 后续用 m开头的操作来执行
+- d :: 标记为 dispose
+- D :: 强制删除
+- o :: 移动邮件
+- O :: 移动邮件(延迟执行?)
+- i :: 预下载
+- ~ :: 转发
+- u :: 取消标记
+- x :: 执行标记好的操作
+
+** 查看邮件内容
+u		Move to upper content
+p or M-TAB	Move to previous content
+n or TAB	Move to next content
+SPC		Scroll up or move to next content
+M-SPC or DEL	Scroll down or move to previous content
+RET		Move to next line
+M-RET		Move to previous line
+v		Decode current content as ‘play mode’
+e		Decode current content as ‘extract mode’
+C-c C-p		Decode current content as ‘print mode’
+a		Followup to current content.
+q		Quit
+button-2	Move to point under the mouse cursor
+        	and decode current content as ‘play mode’
+
+** 邮件同步的范围
+
+all              Discard present msgdb and retrieve all informations.
+                 Do not retrieve killed messages.
+all-entirely     Discard present msgdb and retrieve all informations.
+                 Retrieve killed messages, too.
+update           Update the difference between informations in present
+                 msgdb and in current folder instance.
+                 Do not retrieve killed messages.
+update-entirely  Update the difference between informations in present
+                 msgdb and in current folder instance.
+                 Retrieve killed messages, too.
+rescan           Redisplay summary by rescanning present msgdb.
+rescan-noscore   Redisplay summary by rescanning present msgdb.
+                 Display messages killed by score, too.
+rescan-thread    Redisplay summary by rescanning present msgdb.
+                 Reconstruct thread, too.
+cache-status     Sync the all marks with the real status of cache.
+mark             Update marks.
+no-sync          Do nothing.
+first:NUM        Move to the filter folder(partial filter).
+last:NUM         Move to the filter folder(partial filter).
+
+** 参考文档
+- https://github.com/LdBeth/Emacs-for-Noobs/blob/master/WanderLust.org
