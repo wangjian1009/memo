@@ -1,20 +1,19 @@
 #+TITLE: Emacs dap-mode的使用
 :PROPERTIES:
-#+STARTUP: content
+#+STARTUP: showall
 :END:
 
 ** 安装c++调试环境
 
-#+begin_src emacs-lisp :tangle yes
-(dap-gdb-lldb-setup)
-#+end_src
-
-这个命令会自动下载安装到 
-.emacs.d/.extension/vscode/webfreak.debug
-
-这个需要 lldb-mi 程序
-
-可以从vscode的c++包中找到
+*** dap-lldb Mac环境
+#+BEGIN_SRC bash
+brew install llvm
+mkdir -p ~/.vscode/extensions/llvm-org.lldb-vscode-0.1.0/bin
+ln -s /usr/local/opt/llvm/bin/llvm-vscode ~/.vscode/extensions/llvm-org.lldb-vscode-0.1.0/bin/llvm-vscode
+wget https://github.com/llvm-mirror/lldb/raw/master/tools/lldb-vscode/package.json -O  ~/.vscode/extensions/llvm-org.lldb-vscode-0.1.0/package.json
+cd ~/.vscode/extensions/llvm-org.lldb-vscode-0.1.0/
+npm install
+#+END_SRC
 
 ** 快捷键
 
