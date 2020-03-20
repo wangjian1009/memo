@@ -1,4 +1,7 @@
 #+TITLE: Typescript相关资料
+:PROPERTIES:
+#+STARTUP: showall
+:END:
 
 * 语言相关
 - [[https://typescript.bootcss.com][Typescript中文手册]]

@@ -1,5 +1,7 @@
 #+TITLE: Emacs Org 表格模式常用信息
+:PROPERTIES:
 #+STARTUP: showall
+:END:
 
 来源: http://www.zmonster.me/2016/06/03/org-mode-table.html
 

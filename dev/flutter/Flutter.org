@@ -1,4 +1,7 @@
 #+TITLE: Flutter相关资料
+:PROPERTIES:
+#+STARTUP: showall
+:END:
 
 * Dart语言
 - [[https://www.kancloud.cn/marswill/dark2_document][Dart2语言学习]]

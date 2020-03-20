@@ -1,5 +1,7 @@
 #+TITLE: Flutter开发环境的搭建
-
+:PROPERTIES:
+#+STARTUP: showall
+:END:
 
 ** 把.pub-cache/bin加入PATH
 

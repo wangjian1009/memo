@@ -1,7 +1,7 @@
 #+TITLE: 常用SQL语句
 :PROPERTIES:
 #+TAGS:
-#+STARTUP: showeverything
+#+STARTUP: showall
 #+STARTUP: noindent
 #+STARTUP: showstars
 :END:

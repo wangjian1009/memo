@@ -1,5 +1,7 @@
 #+TITLE:package.json文件说明解释
+:PROPERTIES:
 #+STARTUP: showall
+:END:
 
 ** package.json是什么？
 什么是Node.js的模块（Module）？在Node.js中，模块是一个库或框架，也是一个Node.js项目。

@@ -1,6 +1,6 @@
 #+title: WanderLust模式使用操作
 :PROPERTIES:
-#+STARTUP: content
+#+STARTUP: showall
 :END:
 
 ** 配置收信方式

@@ -1,5 +1,7 @@
 #+TITLE: package.json详解
+:PROPERTIES:
 #+STARTUP: showall
+:END:
 
 * 概述
 本文囊括了所有package.json文件中你需要知道的细节。注意package.json必须是纯JSON的，而不仅仅是一个JavaScript对象字面量。

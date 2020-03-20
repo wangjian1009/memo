@@ -1,4 +1,7 @@
 #+TITLE: Emacs相关信息收集
+:PROPERTIES:
+#+STARTUP: showall
+:END:
 
 ** 重要信息
 - [[https://mirror.tuna.tsinghua.edu.cn/help/elpa/][Emacs包管理的清华镜像]]
@@ -14,3 +17,5 @@
 ** 参考信息
 - https://github.com/zamansky/dot-emacs
 - Centaur Emacs :: https://github.com/seagle0128/.emacs.d
+- Ladicle's Emacs Configuration :: https://ladicle.com/post/config/
+- Natural Project Planning with org-mode :: http://members.optusnet.com.au/~charles57/GTD/Natural_Project_Planning.html
