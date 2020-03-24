@@ -20,5 +20,6 @@
 
 * 参考代码
 - 生成证书 https://www.cnblogs.com/lsdb/p/9391979.html
+- [[./openssl-cert-generate-by-code.org][代码生成证书]]
 - [[./openssl-evp.org][EVP(高层接口)]]
 

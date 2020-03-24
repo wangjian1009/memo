@@ -1,5 +1,20 @@
 #+TITLE: 数字证书的签署
 
+注意三点
+
+第一点，注意将其中的私钥加密密码（-passout参数）修改成自己的密码；下边都是以带-passout参数生成私钥，如果使用-nodes参数，则最后一步“将加密的RSA密钥转成未加密的RSA密钥”不需要执行。
+第二点，证书和密钥给出了直接一步生成和分步生成两种形式，两种形式是等价的，这里使用直接生成形式（分步生成形式被注释）
+第三点，注意将其中的证书信息改成自己的组织信息的。其中证数各参数含义如下：
+
+- C :: 国家（Country Name）
+- ST :: 省份（State or Province Name）
+- L :: 城市（Locality Name）
+- O :: 公司（Organization Name）
+- OU :: 部门（Organizational Unit Name）
+- CN :: 产品名（Common Name）
+- emailAddress :: 邮箱（Email Address）
+
+
 以 RSA 证书为例进行说明，其他算法的证书可能会有所不同。
 
 3.1 根认证机构的构建
