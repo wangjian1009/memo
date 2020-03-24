@@ -1,0 +1,1830 @@
+#+title: OpenSSL中文手册之EVP库详解
+:PROPERTIES:
+#+startup: showcontent
+:END:
+
+* 1. EVP 概览
+** 1.1 EVP 简介
+
+Openssl EVP(high-level cryptographic functions[1])提供了丰富的密码学中的各种函数。
+Openssl 中实现了各种对称算法、摘要算法以及签名/验签算法。
+EVP 函数将这些具体的算法进行了封装。 
+EVP系列的函数的声明包含在”evp.h”里面,这是一系列封装了_openssl_加密库里面所有算法的函数。
+通过这样的统一的封装,使得只需要在初始化参数的时候做很少的改变,就可以使用相同的代码但采用不同的加密算法进行数据的加密和解密。 
+EVP系列函数主要封装了加密、摘要、编码三大类型的算法,使用算法前需要调用OpenSSL_add_all_algorithms函数。 
+其中以加密算法与摘要算法为基本,公开密钥算法是对数据加密采用了对称加密算法,对密钥采用非对称加密（公钥加密,私钥解密）。
+数字签名是非对称算法（私钥签名,公钥认证）。 
+
+EVP 主要封装了如下功能函数：
+
+- 实现了base64 编解码BIO;
+- 实现了加解密BIO;
+- 实现了摘要BIO;
+- 实现了reliable BIO;
+- 封装了摘要算法;
+- 封装了对称加解密算法;
+- 封装了非对称密钥的加密(公钥)、解密(私钥)、签名与验证以及辅助函数;
+- 基于口令的加密(PBE);
+- 对称密钥处理;
+- 数字信封：
+  数字信封用对方的公钥加密对称密钥,数据则用此对称密钥加密。
+  发送给对方时,同时发送对称密钥密文和数据密文。
+  接收方首先用自己的私钥解密密钥密文,得到对称密钥,然后用它解密数据。
+- 其他辅助函数
+
+** 1.2 源码结构
+
+evp 源码位于crypto/evp 目录,可以分为如下几类：
+
+*** 1.2.1 全局函数
+
+主要包括 c_allc.c、c_alld.c、c_all.c 以及names.c。
+他们加载openssl 支持的所有的对称算法和摘要算法,放入到哈希表中。
+实现了OpenSSL_add_all_digests、OpenSSL_add_all_ciphers 以及OpenSSL_add_all_algorithms(调用了前两个函数)函数。
+在进行计算时,用户也可以单独加载摘要函数（EVP_add_digest）和对称计算函数（EVP_add_cipher）。
+
+*** 1.2.2 BIO 扩充
+
+包括 bio_b64.c、bio_enc.c、bio_md.c 和bio_ok.c,各自实现了BIO_METHOD方法,分别用于base64 编解码、对称加解密以及摘要。
+
+*** 1.2.3 摘要算法封装
+
+由 digest.c 实现,实现过程中调用了对应摘要算法的回调函数。
+各个摘要算法提供了自己的EVP_MD 静态结构,对应源码为m_xxx.c。
+
+*** 1.2.4 对称算法封装
+
+由evp_enc.c 实现,实现过程调用了具体对称算法函数,实现了Update 操作。
+各种对称算法都提供了一个EVP_CIPHER 静态结构,对应源码为e_xxx.c。
+需要注意的是,e_xxx.c 中不提供完整的加解密运算,它只提供基本的对于一个block_size数据的计算,完整的计算由evp_enc.c 来实现。
+当用户想添加一个自己的对称算法时,可以参考e_xxx.c 的实现方式。一般用户至少需要实现如下功能：
+
+构造一个新的静态的 EVP_CIPHER 结构;
+实现 EVP_CIPHER 结构中的init 函数,该函数用于设置iv,设置加解密标记、以及根据外送密钥生成自己的内部密钥;
+实现 do_cipher 函数,该函数仅对block_size 字节的数据进行对称运算;
+实现 cleanup 函数,该函数主要用于清除内存中的密钥信息。
+
+*** 1.2.5 非对称算法EVP 封装
+
+主要是以 p_开头的文件。
+其中
+- p_enc.c 封装了公钥加密;
+- p_dec.c 封装了私钥解密;
+- p_lib.c 实现一些辅助函数;
+- p_sign.c 封装了签名函数;
+- p_verify.c 封装了验签函数;
+- p_seal.c 封装了数字信封;
+- p_open.c 封装了解数字信封。
+
+*** 1.2.6 基于口令的加密
+
+包括 p5_crpt2.c、p5_crpt.c 和evp_pbe.c。 
+
+注意： 
+自从出现engin版本以后,所有对称加密算法和摘要算法可以用ENGINE模块实现的算法代替。
+如果ENGINE模块实现的对称加密和信息摘要函数被注册为缺省的实现算法,那么当使用各种EVP函数时,软件编译的时候会自动将该实现模块连接进去。
+
+** 1.4 主要函数
+*** 1.4.1 对称加解密函数
+
+- EVP_BytesToKey :: 计算密钥函数,它根据算法类型、摘要算法、salt 以及输入数据计算出一个对称密钥和初始化向量iv。
+- PKCS5_PBE_keyivgen 和 PKCS5_v2_PBE_keyivgen :: 实现了 PKCS5 基于口令生成密钥和初始化向量的算法。
+- PKCS5_PBE_add :: 加载所有 openssl 实现的基于口令生成密钥的算法。
+- EVP_PBE_alg_add :: 添加一个 PBE 算法。
+
+*** 1.4.2 其他函数
+
+- EVP_add_cipher ::
+将对称算法加入到全局变量,以供调用。
+
+- EVP_add_digest ::
+将摘要算法加入到全局变量中,以供调用。
+
+- EVP_CIPHER_CTX_ctrl ::
+对称算法控制函数,它调用了用户实现的ctrl 回调函数。
+
+- EVP_CIPHER_CTX_set_key_length ::
+当对称算法密钥长度为可变长时,设置对称算法的密钥长度。 
+
+- EVP_CIPHER_CTX_set_padding  ::
+设置对称算法的填充,对称算法有时候会涉及填充。加密分组长度大于一时,用户输入数据不是加密分组的整数倍时,会涉及到填充。
+填充在最后一个分组来完成,openssl 分组填充时,如果有n 个填充,则将最后一个分组用n 来填满。
+
+- EVP_CIPHER_get_asn1_iv ::
+获取原始iv,存放在ASN1_TYPE 结构中。
+
+- EVP_CIPHER_param_to_asn1 ::
+设置对称算法参数,参数存放在ASN1_TYPE 类型中,它调用用户实现的回调函数set_asn1_parameters 来实现。
+
+- EVP_CIPHER_type ::
+获取对称算法的类型。
+
+- EVP_CipherInit/EVP_CipherInit_ex ::
+对称算法计算(加/解密)初始化函数,_ex 函数多了硬件enginge 参数,EVP_EncryptInit 和EVP_DecryptInit 函数也调用本函数。
+
+- EVP_CipherUpdate ::
+对称计算（加/解密）函数,它调用了EVP_EncryptUpdate 和EVP_DecryptUpdate函数。
+
+- EVP_CipherFinal/EVP_CipherFinal_ex ::
+对称计算( 加/ 解) 函数, 调用了EVP_EncryptFinal(_ex) 和EVP_DecryptFinal(_ex);本函数主要用来处理最后加密分组,可能会有对称计算。
+
+- EVP_cleanup ::
+清除加载的各种算法,包括对称算法、摘要算法以及PBE 算法,并清除这些算法相关的哈希表的内容。
+
+- EVP_get_cipherbyname ::
+根据字串名字来获取一种对称算法(EVP_CIPHER),本函数查询对称算法哈希表。
+
+- EVP_get_digestbyname :: 
+根据字串获取摘要算法(EVP_MD),本函数查询摘要算法哈希表。
+
+- EVP_get_pw_prompt ::
+获取口令提示信息字符串.
+
+#+BEGIN_SRC c
+  int EVP_PBE_CipherInit(ASN1_OBJECT *pbe_obj, const char *pass, int passlen, 
+                         ASN1_TYPE *param, EVP_CIPHER_CTX *ctx, int en_de) 
+#+END_SRC
+
+PBE 初始化函数。本函数用口令生成对称算法的密钥和初始化向量,并作加/解密初始化操作。
+本函数再加上后续的EVP_CipherUpdate 以及EVP_CipherFinal_ex构成一个完整的加密过程（可参考crypto/p12_decr.c 的PKCS12_pbe_crypt 函数）.
+
+- EVP_PBE_cleanup ::
+删除所有的PBE 信息,释放全局堆栈中的信息.
+#+BEGIN_SRC c
+EVP_PKEY *EVP_PKCS82PKEY(PKCS8_PRIV_KEY_INFO *p8) 
+#+END_SRC
+将PKCS8_PRIV_KEY_INFO(x509.h 中定义)中保存的私钥转换为EVP_PKEY结构。
+
+- EVP_PKEY2PKCS8/EVP_PKEY2PKCS8_broken ::
+将EVP_PKEY 结构中的私钥转换为PKCS8_PRIV_KEY_INFO 数据结构存储。
+
+- EVP_PKEY_bits ::
+非对称密钥大小,为比特数。
+
+- EVP_PKEY_cmp_parameters ::
+比较非对称密钥的密钥参数,用于DSA 和ECC 密钥。
+
+- EVP_PKEY_copy_parameters ::
+拷贝非对称密钥的密钥参数,用于DSA 和ECC 密钥。
+
+- EVP_PKEY_free ::
+释放非对称密钥数据结构。
+
+- EVP_PKEY_get1_DH/EVP_PKEY_set1_DH ::
+获取/设置EVP_PKEY 中的DH 密钥。
+
+- EVP_PKEY_get1_DSA/EVP_PKEY_set1_DSA ::
+获取/设置EVP_PKEY 中的DSA 密钥。
+
+- EVP_PKEY_get1_RSA/EVP_PKEY_set1_RSA ::
+获取/设置EVP_PKEY 中结构中的RSA 结构密钥。
+
+- EVP_PKEY_missing_parameters ::
+检查非对称密钥参数是否齐全,用于DSA 和ECC 密钥。
+
+- EVP_PKEY_new ::
+生成一个EVP_PKEY 结构。
+
+- EVP_PKEY_size ::
+获取非对称密钥的字节大小。
+
+- EVP_PKEY_type ::
+获取EVP_PKEY 中表示的非对称密钥的类型。
+#+BEGIN_SRC c
+  int EVP_read_pw_string(char *buf,int length,const char *prompt,int verify) 
+#+END_SRC
+获取用户输入的口令;
+buf 用来存放用户输入的口令,
+length 为buf 长度,prompt为提示给用户的信息,如果为空,它采用内置的提示信息,
+verify 为0 时,不要求验证用户输入的口令,否则回要求用户输入两遍。
+返回0 表示成功。
+
+- EVP_set_pw_prompt ::
+设置内置的提示信息,用于需要用户输入口令的场合。
+
+* 2. 对称加密
+
+EVP加密算法包括了对称加密算法和非对称加密算法
+
+函数名称: EVP_Encrypt*…,EVP_Cipher…*
+功能描述: 该系列函数封装提供了对称加密算法的功能
+相关文件: evp_enc.c、e_*.c
+
+** 2.1 基本数据结构
+
+  EVP_CIPHER与EVP_CIPHER_CTX两个基本结构,加密函数EVP_Encrypt(EVP_Cipher)一些列函数都是以这两个结构为基础实现了。文件evp_enc.c是最高层的封装实现,,而各个e_*.c文件则是真正实现了各种算法的加解密功能,当然它们其实也是一些封装函数,真正的算法实现在各个算法同名目录里面的文件实现。 
+  注意: EVP_CIPHER是、EVP_CIPHER_CTX的成员,在加密时通过指定的加密算法（其实就是加密函数）,返回对应的EVP_CIPHER的指针,然后EVP_EncryptInit函数中 调用 EVP_CIPHER来初化EVP_CIPHER_CTX。
+
+*** 2.1.1 EVP_CIPHER结构体
+#+BEGIN_SRC c
+#include<openssl/evp.h>
+
+typedef struct evp_cipher_st {
+    int nid;               //是算法类型的nid识别号,openssl里面每个对象都有一个内部唯一的识别ID
+    int block_size;        //是每次加密的数据块的长度,以字节为单位
+    int key_len;           //是每次加密的数据块的长度,以字节为单位
+    int iv_len;            //初始化向量的长度
+    unsigned long flags;   //标志位
+    int (*init)(EVP_CIPHER_CTX *ctx, const unsigned char *key, const unsigned char *iv, int enc);
+                           //算法结构初始化函数,可以设置为加密模式还是解密模式
+    int (*do_cipher)(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, unsigned int inl);                  //进行数据加密或解密的函数
+    int (*cleanup)(EVP_CIPHER_CTX *);   //释放EVP_CIPHER_CTX结构里面的数据和设置
+    int ctx_size;                       //设定ctx->cipher_data数据的长度
+    int (*set_asn1_parameters)(EVP_CIPHER_CTX *, ASN1_TYPE *);                          
+                                        // 在EVP_CIPHER_CTX结构中通过参数设置一个ASN1_TYPE
+    int (*get_asn1_parameters)(EVP_CIPHER_CTX *, ASN1_TYPE *);        //从一个ASN1_TYPE中取得参数
+    int (*ctrl)(EVP_CIPHER_CTX *, int type, int arg, void *ptr);      //其它各种操作函数
+    void *app_data;                                                   //应用数据
+}EVP_CIPHER;
+#+END_SRC
+
+*** 2.1.2 EVP_CIPHER_CTX结构体
+#+BEGIN_SRC c
+#include<openssl/evp.h>
+typedef struct evp_cipher_ctx_st
+{
+    const EVP_CIPHER *cipher;  //是该结构相关的一个EVP_CIPHER算法结构
+    ENGINE *engine;            //如果加密算法是ENGINE提供的,那么该成员保存了相关的函数接口
+    int encrypt;               //加密或解密的标志
+    int buf_len;               //该结构缓冲区里面当前的数据长度
+    unsigned char oiv[EVP_MAX_IV_LENGTH];      //初始的初始化向量
+    unsigned char iv[EVP_MAX_IV_LENGTH];       //工作时候使用的初始化向量
+    unsigned char buf[EVP_MAX_BLOCK_LENGTH];   //保存下来的部分需要数据
+    int num;                   //在cfb/ofb模式的时候指定块长度
+    void *app_data;            //应用程序要处理数据
+    int key_len;               //密钥长度,算法不一样长度也不一样
+    unsigned long flags; 
+    void *cipher_data;         //加密后的数据
+    int final_used;
+    int block_mask;
+    unsigned char final[EVP_MAX_BLOCK_LENGTH];//
+} EVP_CIPHER_CTX;
+#+END_SRC
+
+** 2.2 相关函数
+所在文件evp_enc.c、evp.h。
+
+*** 2.2.1 核心函数
+
+EVP_*crypt系列函数只是对EVP_Cipher函数的调用,EVP_Encrypt函数相当于对EVP_Cipher函数enc参数置为1,EVP_Decrypt函数相当于对EVP_Cipher函数enc参数置为0。
+
+**** 2.2.1.1 底层函数
+
+旧版本
+#+BEGIN_SRC c
+  #include<openssl/evp.h>
+
+  int EVP_CipherInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher, 
+                     const unsigned char *key, const unsigned char *iv, int enc)
+  int EVP_CipherUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, 
+                       int *outl,const unsigned char *in, int inl)
+  int EVP_CipherFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
+#+END_SRC
+
+新版本
+#+BEGIN_SRC c
+int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher, 
+                      ENGINE *impl, const unsigned char *key,const unsigned char *iv, int enc)
+int EVP_CipherUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
+                      const unsigned char *in, int inl)
+int EVP_CipherFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
+#+END_SRC
+
+- EVP_CipherInit_ex, EVP_CipherUpdate和EVP_CipherFinal_ex ::
+
+事实上,后面介绍的函数都是调用这三个函数实现的,它们是更底层的函数。
+完成了数据的加密和解密功能。
+他们根据参数enc决定执行加密还是解密操作,如果enc为1,则加密;
+如果enc为0,则解密;如果enc是－1,则不改变数据。
+三个函数都是操作成功返回1,否则返回0。 
+
+注意：两个版本中：EVP_EncryptInit,EVP_DecryptInit和EVP_CipherInit,这三个函数的功能分别跟函数EVP_EncryptInit_ex,EVP_DecryptInit_ex和EVP_CipherInit_ex功能相同,只是他们的ctx参数不需要进行初始化,并且使用缺省的算法库。三个函数都是操作成功返回1,否则返回0。 EVP_EncryptFinal, EVP_DecryptFinal和EVP_CipherFinal,这三个函数分别跟函数EVP_EncryptFinal_ex,EVP_DecryptFinal_ex以及EVP_CipherFinal_ex函数功能相同,不过,他们的参数ctx会在调用后自动释放。三个函数都是操作成功返回1,否则返回0。
+
+**** 2.2.1.2 加密
+
+旧版本
+#+BEGIN_SRC c
+  int EVP_EncryptInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher, 
+                      const unsigned char *key, const unsigned char *iv)
+  int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, 
+                        int *outl,const unsigned char *in, int inl)
+  int EVP_EncryptFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
+#+END_SRC
+
+新版本
+#+BEGIN_SRC c
+int EVP_EncryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
+                       ENGINE *impl, const unsigned char *key,const unsigned char *iv)
+int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, 
+                       int *outl,const unsigned char *in, int inl)
+int EVP_EncryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
+#+END_SRC
+
+- EVP_EncryptInit_ex ::
+
+该函数采用ENGINE参数impl的算法来设置并初始化加密结构体。
+其中,参数ctx必须在调用本函数之前已经进行了初始化。
+参数type通常通过函数类型来提供参数,如EVP_des_cbc函数的形式,即我们上一章中介绍的对称加密算法的类型。
+如果参数impl为NULL,那么就会使用缺省的实现算法。
+参数key是用来加密的对称密钥,iv参数是初始化向量（如果需要的话）。
+在算法中真正使用的密钥长度和初始化密钥长度是根据算法来决定的。
+（也就是你传入的key或者iv长度可以是任意的,实际使用的数据取决于算法,不足会自动补上,超过会自动舍去）在调用该函数进行初始化的时候,除了参数cipher之外,所有其它参数可以设置为NULL,留到以后调用其它函数的时候再提供,这时候参数cipher就设置为NULL就可以了。在缺省的加密参数不合适的时候,可以这样处理。操作成功返回1,否则返回0。
+
+- EVP_EncryptUpdate ::
+
+该函数执行对数据的加密。
+该函数加密从参数in输入的长度为inl的数据,并将加密好的数据写入到参数out里面去。
+可以通过反复调用该函数来处理一个连续的数据块。
+写入到out的数据数量是由已经加密的数据的对齐关系决定的,理论上来说,从0到(inl+cipher_block_size-1)的任何一个数字都有可能（单位是字节）,所以输出的参数out要有足够的空间存储数据。
+写入到out中的实际数据长度保存在outl参数中。操作成功返回1,否则返回0。
+
+- EVP_EncryptFinal_ex ::
+
+该函数处理最后（Final）的一段数据。在函数在padding功能打开的时候（缺省）才有效,这时候,它将剩余的最后的所有数据进行加密处理。该算法使用标志的块padding方式（AKA PKCS padding）。加密后的数据写入到参数out里面,参数out的长度至少应该能够一个加密块。写入的数据长度信息输入到outl参数里面。该函数调用后,表示所有数据都加密完了,不应该再调用EVP_EncryptUpdate函数。如果没有设置padding功能,那么本函数不会加密任何数据,如果还有剩余的数据,那么就会返回错误信息,也就是说,这时候数据总长度不是块长度的整数倍。操作成功返回1,否则返回0。
+
+PKCS 填充（padding）标准是这样定义的,在被加密的数据后面加上n个值为n的字节,使得加密后的数据长度为加密块长度的整数倍。
+无论在什么情况下,都是要加上padding的,
+也就是说,如果被加密的数据已经是块长度的整数倍,那么这时候n就应该等于块长度。
+比如,如果块长度是9,要加密的数据长度是11,那么7个值为7的字节就应该增加在数据的后面。
+
+**** 2.2.1.3 解密
+
+旧版本
+#+BEGIN_SRC c
+  int EVP_DecryptInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
+                      const unsigned char *key, const unsigned char *iv)
+  int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
+                        const unsigned char *in, int inl)
+  int EVP_DecryptFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
+#+END_SRC
+
+新版本
+#+BEGIN_SRC c
+  int EVP_DecryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
+                         ENGINE *impl, const unsigned char *key, const unsigned char *iv)  
+  int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
+                        const unsigned char *in, int inl)                    
+  int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
+#+END_SRC
+
+- EVP_DecryptInit_ex, EVP_DecryptUpdate和EVP_DecryptFinal_ex ::
+这三个函数是上面三个函数相应的解密函数。
+这些函数的参数要求基本上都跟上面相应的加密函数相同。
+如果填充（padding）功能打开了,EVP_DecryptFinal会检测最后一段数据的格式,如果格式不正确,该函数会返回错误代码。
+此外,如果打开了padding功能,EVP_DecryptUpdate函数的参数out的长度应该至少为（inl+cipher_block_size）字节;但是,如果块的长度为1,则其长度为inl字节就足够了
+。三个函数都是操作成功返回1,否则返回0。 
+
+需要注意的是,虽然在padding功能开启的情况下,解密操作提供了错误检测功能,但是该功能并不能检测输入的数据或密钥是否正确,
+所以即便一个随机的数据块也可能无错的完成该函数的调用。
+如果padding功能关闭了,那么当解密数据长度是块长度的整数倍时,操作总是返回成功的结果。
+
+*** 2.2.2 辅助函数
+
+**** 2.2.2.1 操作EVP_CIPHER_CTX的函数
+#+BEGIN_SRC c
+int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *c)    //重置EVP_CIPHER_CTX
+
+EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void)       //开辟EVP_CIPHER_CTX
+void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)  //销毁之前开辟的EVP_CIPHER_CTX
+
+void EVP_CIPHER_CTX_init(EVP_CIPHER_CTX *a);    
+int EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *a);
+#+END_SRC
+
+- EVP_CIPHER_CTX_init ::
+该函数初始化一个EVP_CIPHER_CTX结构体,只有初始化后该结构体才能在下面介绍的函数中使用。无返回值。。
+
+- EVP_CIPHER_CTX_cleanup ::
+该函数清除一个EVP_CIPHER_CTX结构中的所有信息并释放该结构占用的所有内存。
+在使用上述的函数完成一个加密算法过程后应该调用该函数,这样可以避免一些敏感信息遗留在内存造成安全隐犯。
+成功返回1,否则返回0。
+
+**** 2.2.2.2 参数设置与获取函数
+#+BEGIN_SRC c
+  #define EVP_MAX_IV_LENGTH 16
+  #define EVP_MAX_BOLCK_LENGTH 32
+  #define EVP_MAX_KEY_LENGTH 64
+
+  int     is_partially_overlapping(const void *ptr1, const void *ptr2, int len)
+  int EVP_CIPHER_CTX_set_padding(EVP_CIPHER_CTX *x, int padding);
+  int EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *x, int keylen);
+  int EVP_CIPHER_CTX_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg, void *ptr);
+
+
+  const EVP_CIPHER *EVP_get_cipherbyname(const char *name);
+  #define EVP_get_cipherbynid(a) EVP_get_cipherbyname(OBJ_nid2sn(a))
+  #define EVP_get_cipherbyobj(a) EVP_get_cipherbynid(OBJ_obj2nid(a))
+
+  #define EVP_CIPHER_nid(e)              ((e)->nid)
+  #define EVP_CIPHER_block_size(e)       ((e)->block_size)
+  #define EVP_CIPHER_key_length(e)       ((e)->key_len)
+  #define EVP_CIPHER_iv_length(e)                ((e)->iv_len)
+  #define EVP_CIPHER_flags(e)            ((e)->flags)
+  #define EVP_CIPHER_mode(e)             ((e)->flags) & EVP_CIPH_MODE)
+  int EVP_CIPHER_type(const EVP_CIPHER *ctx);
+
+  #define EVP_CIPHER_CTX_cipher(e)       ((e)->cipher)
+  #define EVP_CIPHER_CTX_nid(e)          ((e)->cipher->nid)
+  #define EVP_CIPHER_CTX_block_size(e)   ((e)->cipher->block_size)
+  #define EVP_CIPHER_CTX_key_length(e)   ((e)->key_len)
+  #define EVP_CIPHER_CTX_iv_length(e)    ((e)->cipher->iv_len)
+  #define EVP_CIPHER_CTX_get_app_data(e) ((e)->app_data)
+  #define EVP_CIPHER_CTX_set_app_data(e,d) ((e)->app_data=(char *)(d))
+  #define EVP_CIPHER_CTX_type(c)         EVP_CIPHER_type(EVP_CIPHER_CTX_cipher(c))
+  #define EVP_CIPHER_CTX_flags(e)                ((e)->cipher->flags)
+  #define EVP_CIPHER_CTX_mode(e)         ((e)->cipher->flags & EVP_CIPH_MODE)
+
+  int EVP_CIPHER_param_to_asn1(EVP_CIPHER_CTX *c, ASN1_TYPE *type);
+  int EVP_CIPHER_asn1_to_param(EVP_CIPHER_CTX *c, ASN1_TYPE *type);
+#+END_SRC
+- EVP_CIPHER_CTX_set_padding ::
+该函数设置是否采用填充（padding）功能。
+在算法缺省的情况下,是使用标准的块填充功能的,并且在解密的时候会自动检测填充数据并将其删除。
+如果将参数pad设置为0,则padding功能就会被禁止,那么在加密和解密的时候,此时数据应该为加密块长度的整数倍,否则就会出错。函数恒返回1。
+
+- EVP_CIPHER_CTX_set_key_length ::
+该函数进行加密算法结构EVP_CIPHER_CTX密钥长度的设置。
+如果算法是一个密钥长度固定的算法,那么如果设置的密钥长度跟它固定的长度不一致,就会产生错误。
+
+- EVP_get_cipherbyname, EVP_get_cipherbynid和EVP_get_cipherbyobj ::
+这三个函数都根据给定的参数返回一个EVP_CIPHER结构,不同的是给定的参数分别是算法名称、算法的NID和一个ASN1_OBJECT结构。
+具体的算法名称、NID以及ASN1_OBJECT结构请参看object/boject.h文件的定义。成功返回对应的EVP_CIPHER* ,失败返回NULL。
+
+- EVP_CIPHER_nid和EVP_CIPHER_CTX_nid ::
+这两个函数返回EVP_CIPHER或EVP_CIPHER_CTX结构内部的算法的NID。
+返回的NID值只是一个内部存储的值,并不一定真的有相应的OBJECT定义。
+返回EVP_CIPHER的nid成员的值。
+
+- EVP_CIPHER_key_length 和 EVP_CIPHER_CTX_key_length ::
+这两个函数返回EVP_CIPHER或EVP_CIPHER_CTX结构内部的算法的密钥长度。
+常量EVP_MAX_KEY_LENGTH定义了所有算法最长的密钥长度。
+需要注意的是,对于EVP_CIPHER_key_length函数来说,对特定的一种算法密钥长度是不变的,但是EVP_CIPHER_CTX_key_length函数对同一个算法密钥长度却是可变的。
+
+- EVP_CIPHER_iv_length 和 EVP_CIPHER_CTX_iv_length ::
+这两个函数返回EVP_CIPHER或EVP_CIPHER_CTX结构内部的算法的初始化向量长度。
+如果算法不使用IV,那么就会返回0。
+常量EVP_MAX_IV_LENGTH定义了所有算法最长的IV长度。
+
+- EVP_CIPHER_block_size 和 EVP_CIPHER_CTX_block_size ::
+这两个函数返回EVP_CIPHER或EVP_CIPHER_CTX结构内部的算法的加密块长度。常量EVP_MAX_IV_LENGTH也是所有算法最长的块长度。
+
+- EVP_CIPHER_type 和 EVP_CIPHER_CTX_type ::
+这两个函数返回EVP_CIPHER或EVP_CIPHER_CTX结构内部的算法的类型。
+该类型的值是算法的NID,一般来说,NID忽略了算法的一些参数,如40位和129位RC2算法的NID是相同的。
+如果算法没有相应定义的NID或者不是ASN1所支持的,那么本函数就会返回NID_undef。
+
+- EVP_CIPHER_CTX_cipher ::
+该函数返回EVP_CIPHER_CTX结构里面的EVP_CIPHER结构。
+
+- EVP_CIPHER_mode 和 EVP_CIPHER_CTX_mode ::
+这两个函数返回相应结构算法的块加密模式,包括EVP_CIPH_ECB_MODE, EVP_CIPH_CBC_MODE, EVP_CIPH_CFB_MODE和EVP_CIPH_OFB_MODE;如果算法是流加密算法,那么就返回EVP_CIPH_STREAM_CIPHER 。
+
+- EVP_CIPHER_param_to_asn1 ::
+该函数设置算法结构的参数,一般来说设置的值包括了所有参数和一个IV值。
+如果算法有IV,那么调用该函数时IV是必须设置的。
+该函数必须在所设置的算法结构使用之前（如调用EVP_EncryptUpdate和EVP_DecryptUpdate函数之前）调用。
+如果ASN1不支持该算法,那么调用该函数将导致失败。
+操作成功返回1,否则返回0。
+
+- EVP_CIPHER_asn1_to_param ::
+该函数给用算法结构里面的值设置参数type的结构。
+其设置的内容由具体的算法决定。
+如在RC2算法中,它会设置IV和有效密钥长度。
+本函数应该在算法结构的基本算法类型已经设置了但是密钥还没有设置之前调用。
+例如,调用EVP_CipherInit函数的时候使用参数IV,并将key设置位NULL,然后就应该调用本函数,最后再调用EVP_CipherInit,这时候除了key设置位NULL外所有参数都应该设置。当ASN1不支持不支持该算法或者有参数不能设置的时候（如RC2的有效密钥长度不支持）,该函数调用就会失败。
+操作成功返回1,否则返回0。
+
+- EVP_CIPHER_CTX_ctrl ::
+该函数可以设置不同算法的特定的参数。
+目前只有RC2算法的有效密钥长度和RC5算法的加密次数（rounds)可以进行设置。
+
+- KCS5_PBE_keyivgen 和 PKCS5_v2_PBE_keyivgen ::
+实现了 PKCS5 基于口令生成密钥和初始化向量的算法。
+
+- PKCS5_PBE_add ::
+加载所有 openssl 实现的基于口令生成密钥的算法。
+
+- EVP_PBE_alg_add ::
+添加一个 PBE 算法。
+
+*** 2.2.3 算法函数
+
+openssl对称加密算法的格式都以函数形式提供,其实该函数返回一个该算法的结构体,其形式一般如下(evp.h 、e_*.c)： 
+EVP_CIPHER* EVP_加密算法(void) 
+在openssl中,所有提供的对称加密算法长度都是固定的,有特别说明的除外。下面对这些算法进行分类的介绍,首先介绍一下算法中使用的通用标志的含义。
+
+**** 2.2.3.1 分组加密的迭代模式
+
+- ecb :: 电子密码本（Electronic Code Book)加密方式
+- cbc :: 加密块链接（Cipher Block Chaining）加密方式
+- cfb :: 64位加密反馈（Cipher Feedback）加密方式
+- ofb :: 64位输出反馈（Output Feedback）加密方式
+- ede :: 该加密算法采用了加密、解密、加密的方式,第一个密钥和最后一个密钥是相同的
+- ede3 :: 该加密算法采用了加密、解密、加密的方式,但是三个密钥都不相同
+
+**** 2.2.3.2 加密算法
+
+- NULL算法 ::
+函数：EVP_enc_null()该算法不作任何事情,也就是没有进行加密处理
+
+- DES算法 ::
+函数：EVP_des_cbc(void), EVP_des_ecb(void), EVP_des_cfb(void), EVP_des_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的DES算法
+
+- 使用两个密钥的3DES算法 ::
+函数：EVP_des_ede_cbc(void), EVP_des_ede(), EVP_des_ede_ofb(void),EVP_des_ede_cfb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的3DES算法,算法的第一个密钥和最后一个密钥相同,事实上就只需要两个密钥
+
+- 使用三个密钥的3DES算法 ::
+函数：EVP_des_ede3_cbc(void), EVP_des_ede3(), EVP_des_ede3_ofb(void), EVP_des_ede3_cfb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的3DES算法,算法的三个密钥都不相同
+
+- DESX算法 ::
+函数：EVP_desx_cbc(void) 
+说明：CBC方式DESX算法
+
+- RC2算法 ::
+函数：EVP_rc2_cbc(void), EVP_rc2_ecb(void), EVP_rc2_cfb(void), EVP_rc2_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的RC2算法,该算法的密钥长度是可变的,可以通过设置有效密钥长度或有效密钥位来设置参数来改变。缺省的是128位。
+
+- 定长的两种RC2算法 ::
+函数：EVP_rc2_40_cbc(void), EVP_rc2_64_cbc(void) 
+说明：分别是40位和64位CBC模式的RC2算法。
+
+- RC4算法 ::
+函数：EVP_rc4(void) 
+说明：RC4流加密算法。该算法的密钥长度可以改变,缺省是128位。
+
+- 40位RC4算法 ::
+函数：EVP_rc4_40(void) 
+说明：密钥长度40位的RC4流加密算法。该函数可以使用EVP_rc4和EVP_CIPHER_CTX_set_key_length函数代替
+
+- RC5算法 ::
+函数：EVP_rc5_32_12_16_cbc(void), EVP_rc5_32_12_16_ecb(void), EVP_rc5_32_12_16_cfb(void), EVP_rc5_32_12_16_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的RC5算法,该算法的密钥长度可以根据参数“number of rounds”（算法中一个数据块被加密的次数）来设置,缺省的是128位密钥,加密次数为12次。目前来说,由于RC5算法本身实现代码的限制,加密次数只能设置为8、12或16。
+
+- IDEA算法 ::
+函数：EVP_idea_cbc(),EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的IDEA算法。
+
+- Blowfish算法 ::
+函数：EVP_bf_cbc(void), EVP_bf_ecb(void), EVP_bf_cfb(void), EVP_bf_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的Blowfish算法,该算法的密钥长度是可变的
+
+- CAST算法 ::
+函数：EVP_cast5_cbc(void), EVP_cast5_ecb(void), EVP_cast5_cfb(void), EVP_cast5_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的CAST算法,该算法的密钥长度是可变的
+
+- 128位AES算法 ::
+函数：EVP_aes_128_ecb(void),EVP_aes_128_cbc(void),PEVP_aes_128_cfb(void),EVP_aes_128_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的128位AES算法
+
+- 192位AES算法 ::
+函数：EVP_aes_192_ecb(void),EVP_aes_192_cbc(void),PEVP_aes_192_cfb(void),EVP_aes_192_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的192位AES算法
+
+- 256位AES算法 ::
+函数：EVP_aes_256_ecb(void),EVP_aes_256_cbc(void),PEVP_aes_256_cfb(void),EVP_aes_256_ofb(void) 
+说明：分别是CBC方式、ECB方式、CFB方式以及OFB方式的256位AES算法
+
+注： 这些加密算法函数调用时返回的都是对应EVP_CIPHER结构体指针。
+
+** 2.3 应用架构
+
+一般来说,EVP_Encrypt*…*系列函数的应用架构如下所描述(假设加密算法为3DES):
+
+定义一些必须的变量
+char key[EVP_MAX_KEY_LENGTH];
+char iv[EVP_MAX_IV_LENGTH];
+EVP_CIPHER_CTX ctx;
+unsigned char out[512+8];
+int outl;
+
+！注意：一般情况下,对于对称加密算法,尤其是分组加密,输出数据缓冲区大小要大于输入数据缓冲区,所以一般输出缓冲区的大小应设置为sizeof（array_in）+ EVP_MAX_BLOCK_SIZE,或者sizeof（array_in）+ EVP_CIPHER.block_size,这是因为分组加密,会按照一定的模式填充块。
+
+给变量key和iv赋值 
+  这里使用了函数EVP_BytesToKey,该函数从输入密码产生了密钥key和初始化向量iv,该函数将在后面做介绍。如果可以有别的办法设定key和iv,该函数的调用不是必须的
+EVP_BytesToKey(EVP_des_ede3_cbc,EVP_md5,NULL,passwd,strlen(passwd),key,iv);
+初始加密算法结构EVP_CIPHER_CTX
+EVP_EncryptInit_ex(&ctx, EVP_des_ede3_cbc(), NULL, key, iv);
+进行数据的加密操作
+    while (....)
+    {
+     EVP_EncryptUpdate(ctx,out,&outl,in,512);
+    }
+  一般来说采用了循环的结构进行处理,每次循环加密数据为512字节,密文输出到out,out和int应该是指向不相同的内存的。
+
+  ！注意：EVP库的EVP_*Update系列函数调用一次就能处理完指针in中的inlen个字节数据。这里所谓的循环是用于此类情景：每次收到若干字节放入指针in指向的缓冲区中,然后对其处理;或者每次从文件中读取若干字节到指针in所指缓冲区,再对其处理。如果输入的数据不是整数倍,则会留到EVP_*_CTX 中,等待下一次Update或EVP_Final*来处理,也就是循环是用于无法一次传入所有数据的情况。*
+
+结束加密,输出最后的一段512字节的数据
+    EVP_EncryptFinal_ex(&ctx, out, &outl)
+  该函数会进行加密的检测,如果加密过程有误,一般会检查出来。 
+  说明：解密跟上述过程是一样的,只不过要使用EVP_Decrypt*…*系列函数。
+
+** 2.4 用法示例
+#+BEGIN_SRC c
+//OpenSSL中所有的对称和摘要算法都需要进行全局初始化,方法如下:
+    OpenSSL_add_all_algorithms();
+//当然也可以只载入加密算法或摘要算法
+
+//  OpenSSL_add_all_digest();
+//  OpenSSL_add_all_cipher();
+
+//如果不经过初始化就调用了加密或摘要相关的EVP接口,则会返回错误。
+
+//对称算法
+
+static int OpenSSL_Cipher(const char *ciphername, int dir, 
+              const unsigned char *aKey, const unsigned char *iVec,
+              const unsigned char *in, int inlen,
+              unsigned char *out, int *poutlen)
+{
+    int rv = 0, n = 0, tmplen = 0;
+    char szErr[1024];
+
+    const EVP_CIPHER *cipher = NULL;
+    EVP_CIPHER_CTX ctx;
+
+    /* 初始化加密调用的上下文 */   
+    EVP_CIPHER_CTX_init(&ctx);
+
+    /* 根据名称（如des-cbc,或rc4）获取CIPHER对象,OpenSSL支持的算法名称可以用openssl enc -h命令列出 */ 
+    cipher = EVP_get_cipherbyname(ciphername);
+    if (NULL == cipher) {
+        fprintf( stderr, "OpenSSL_Cipher: Cipher for %s is NULL\n", ciphername );
+
+        rv = -1;
+        goto err;
+    }
+
+    /**
+     * 初始化算法：设置对称算法的密钥,IV,以及加解密标志位dir
+     * 如果使用Engine,此时会调用其实现的EVP_CIPHER->init回调函数
+     */
+    if (!EVP_CipherInit_ex(&ctx, cipher, NULL, aKey, iVec, dir)) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+
+        fprintf( stderr, "OpenSSL_Cipher: EVP_CipherInit failed: \nopenssl return %d, %s\n", n, szErr );
+
+        rv = -2;
+        goto err;
+    }
+
+    /**
+     * 对数据进行加/解密运算（如果使用Engine,此时会调用其实现的EVP_CIPHER->do_cipher回调函数）
+     * 对于连续数据流,CipherUpdate一般会被调用多次
+     */
+    if (!EVP_CipherUpdate(&ctx, out, poutlen, in, inlen)) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+
+        fprintf( stderr, "OpenSSL_Cipher: EVP_CipherInit failed: \nopenssl return %d, %s\n", n, szErr );
+
+        rv = -3;
+        goto err;
+    }
+
+    /**
+     * 输出最后一块数据结果（块加密时,数据将被padding到block长度的整数倍,因此会产生额外的最后一段数据）
+     * 注意：如果使用Engine,此时会触发其实现的EVP_CIPHER->do_cipher,而不是EVP_CIPHER->cleanup
+     *       这点上与EVP_DigestFinal/EVP_SignFinal/EVP_VerifyFinal是完全不同的
+     */ 
+    if (!EVP_CipherFinal(&ctx, out + *poutlen, &tmplen)) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+
+        fprintf( stderr, "OpenSSL_Cipher: EVP_CipherInit failed: \nopenssl return %d, %s\n", n, szErr );
+
+        rv = -4;
+        goto err;
+    }
+
+    *poutlen += tmplen;
+
+err:    
+    /* 释放上下文（如果使用Engine,此时会调用其实现的EVP_CIPHER->cleanup回调函数） */    
+    EVP_CIPHER_CTX_cleanup(&ctx);
+
+    return rv;
+}
+
+//与OpenSSl_add_all_algorithms正好相反
+EVP_cleanup();
+#+END_SRC
+
+* 3. 摘要
+该系列函数封装了openssl加密库所有的信息摘要算法,通过这种EVP封装,当使用不同的信息摘要算法时,只需要对初始化参数修改一下就可以了,其它代码可以完全一样。这些算法包括MD2、MD5以及SHA等算法。
+
+函数名称：EVP_Digest*…*
+功能描述：该系列函数封装实现了多种信息摘要算法。
+相关文件：digest.c,m_*.c
+
+** 3.1 基本数据结构
+
+EVP_MD与EVP_MD_CTX两个基本结构,摘要函数EVP_Digest*一些列函数都是以这两个结构为基础实现了。文件digest.c是最高层的封装实现,而各个m_*.c文件则是真正实现了各种算法的摘要算法,当然它们其实也是一些封装函数,真正的算法实现在各个算法同名目录里面的文件实现。
+
+*** 3.1.1 EVP_MD结构体
+
+所有的摘要算法都维护着指向下面定义的结构体的一个指针,在此基础上实现了算法的功能。该结构EVP_MD如下：
+
+#+BEGIN_SRC c
+  #include<opessl/evp.h>
+  typedef struct env_md_st { 
+      int type;     //信息摘要算法的NID标识
+      int pkey_type;//是信息摘要-签名算法体制的相应NID标识,如NID_shaWithRSAEncryption
+      int md_size;  //是信息摘要算法生成的信息摘要的长度,如SHA算法是SHA_DIGEST_LENGTH,该值是20
+      unsigned long flags;
+      int (*init)(EVP_MD_CTX *ctx);
+      //指向一个特定信息摘要算法的初始化函数,如对于SHA算法,指针指向SHA_Init
+      int (*update)(EVP_MD_CTX *ctx,const void *data,unsigned long count); 
+      //指向一个真正计算摘要值的函数,例如SHA算法就是指向SHA_Update
+      int (*final)(EVP_MD_CTX *ctx,unsigned char *md);
+      //指向一个信息摘要值计算之后要调用的函数,该函数完成最后的一块数据的处理工作。例如SHA算法就是指向SHA_Final.
+      int (*copy)(EVP_MD_CTX *to,const EVP_MD_CTX *from);
+      //指向一个可以在两个EVP_MD_CTX结构之间拷贝参数值的函数
+      int (*cleanup)(EVP_MD_CTX *ctx);
+      int (*sign)();   //签名
+      int (*verify)(); //认证
+      int required_pkey_type[5];
+      //指向一个用来签名的算法EVP_PKEY的类型,如SHA算法就指向EVP_PKEY_RSA_method
+      int block_size;  //一个用来进行信息摘要的输入块的的长度（单位是字节）,如SHA算法就是SHA_CBLOCK
+      int ctx_size;    //是CTX结构的长度,在SHA算法里面应该就是sizeof(EVP_MD*)+sizeof(SHA_CTX)
+  } EVP_MD;
+#+END_SRC
+
+如果你要增加新的算法,那么可以定义这个结构,并进行必要的一直,然后就可以使用通用的函数了。跟EVP_CIPHER系列函数一样,使用这个封装技术,就可以在使用一种摘要算法时,比如MD5,在连接程序的时候就只连接MD5的代码。如果使用证书来标识算法,那么就会导致所有其它的信息摘要算法代码都连接到程序中去了。
+
+*** 3.1.2 EVP_MD_CTX结构体
+
+在调用函数的时候,一般来说需要传入上面说的type的参数和下面所定义的一个CTX结构,用EVP_MD来初始化EVP_MD_CTX的digest成员,该结构EVP_MD_CTX定义如下：
+
+#+BEGIN_SRC c
+  typedef struct env_md_ctx_st {
+      const EVP_MD *digest;  //digest——指向上面介绍的EVP_MD结构的指针
+      ENGINE *engine;        //如果算法由ENGINE提供,该指针指向该ENGINE
+      unsigned long flags;   //
+      void *md_data;         //信息摘要数据
+  } EVP_MD_CTX ;
+#+END_SRC
+
+** 3.2 相关函数
+
+所在文件digest.c、evp.h。
+
+*** 3.2.1 核心函数
+**** 3.2.1.1 旧版本
+#+BEGIN_SRC c
+int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type)
+int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *data, size_t count)
+int EVP_DigestFinal(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *size)
+#+END_SRC
+
+- EVP_DigestInit ::
+该函数功能跟EVP_DigestInit_ex函数相同,但是ctx参数可以不用初始化,而且该函数只使用缺省实现的算法。成功返回1,失败返回0。 
+
+- EVP_DigestFinal ::
+该函数功能跟EVP_DigestFinal_ex函数相同,但是ctx结构会自动清除。
+一般来说,现在新的程序应该使用EVP_DigestInit_ex和EVP_DigestFinal_ex函数,因为这些函数可以在使用完一个EVP_MD_CTX结构后,不用重新声明和初始化该结构就能使用它进行新的数据处理,而且新的带_ex的函数也可以使用非缺省的实现算法库。
+成功返回1,失败返回0。
+
+**** 3.2.1.2 新版本
+#+BEGIN_SRC c
+int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl)
+int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *data, size_t count)
+int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *size)
+#+END_SRC
+
+- EVP_DigestInit_ex ::
+该函数使用参数impl所指向的ENGINE设置该信息摘要结构体,参数ctx在调用本函数之前必须经过初始化。
+参数type一般是使用象EVP_sha1这样的函数的返回值。
+如果impl为NULL,那么就会使用缺省实现的信息摘要函数。
+大多数应用程序里面impl是设置为NULL的。
+操作成功返回1,否则返回0。 
+
+- EVP_DigestUpdate ::
+该函数将参数d中的cnt字节数据进行信息摘要到ctx结构中去,该函数可以被调用多次,用以对更多的数据进行信息摘要。
+操作成功返回1,否则返回0。 
+
+- EVP_DigestFinal_ex ::
+本函数将ctx结构中的摘要信息数据返回到参数md中,如果参数s不是NULL,那么摘要数据的长度（字节）就会被写入到参数s中,大多数情况瞎,写入的值是EVP_MAX_MD_SIZE。
+在调用本函数后,不能使用相同的ctx结构调用EVP_DigestUpdate再进行数据的信息摘要操作,但是如果调用EVP_DigestInit_ex函数重新初始化后可以进行新的信息摘要操作。
+操作成功返回1,否则返回0。
+
+**** 3.2.1.3 高级版本
+#+BEGIN_SRC c
+int EVP_Digest(const void *data, size_t count,
+               unsigned char *md, unsigned int *size, const EVP_MD *type,ENGINE *impl);
+#+END_SRC
+*** 3.2.2 辅助函数
+**** 3.2.2.1 操作EVP_MD_CTX的函数
+#+BEGIN_SRC c
+  int EVP_MD_CTX_reset(EVP_MD_CTX *ctx)
+
+  EVP_MD_CTX *EVP_MD_CTX_new(void)
+  void EVP_MD_CTX_free(EVP_MD_CTX *ctx)
+
+  EVP_MD_CTX *EVP_MD_CTX_create(void);
+  void EVP_MD_CTX_destroy(EVP_MD_CTX *ctx);
+
+  void EVP_MD_CTX_init(EVP_MD_CTX *ctx);
+  int  EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx);
+
+  int  EVP_MD_CTX_copy(EVP_MD_CTX *out, const EVP_MD_CTX *in)
+  int  EVP_MD_CTX_copy_ex(EVP_MD_CTX *out, const EVP_MD_CTX *in)
+
+  int EVP_MD_CTX_ctrl(EVP_MD_CTX *ctx, int cmd, int p1, void *p2)
+#+END_SRC
+
+- EVP_MD_CTX_init ::
+该函数初始化一个EVP_MD_CTX结构。 
+
+- EVP_MD_CTX_create ::
+该函数创建一个EVP_MD_CTX结构,分配内存并进行初始化,返回该结构。 
+
+- EVP_MD_CTX_cleanup ::
+清除一个信息摘要结构,该函数应该在一个信息摘要结构使用后不再需要的时候调用。 
+
+- EVP_MD_CTX_destroy ::
+清除信息摘要结构并释放所有分配的内存空间,只有使用EVP_MD_CTX_create函数创建的信息摘要结构才能使用该函数进行释放。 
+
+- EVP_MD_CTX_copy_ex ::
+该函数可以用来将信息摘要数据从in结构拷贝到out结构中。
+如果有大量的数据需要进行信息摘要,而且这些数据只有最后几个字节不同的时候,使用该函数就显得特别有用,节省时间。
+其中,out结构必须在调用本函数之前进行初始化。操作成功返回1,否则返回0。 
+
+- EVP_MD_CTX_copy ::
+该函数跟EVP_MD_CTX_copy_ex函数功能相同,但是out参数可以不用初始化。
+
+**** 3.2.2.2 参数设置与获取函数
+#+BEGIN_SRC c
+  #define EVP_MAX_MD_SIZE 64     /* SHA512 */
+  int EVP_MD_type(const EVP_MD *md);
+  int EVP_MD_pkey_type(const EVP_MD *md);
+  int EVP_MD_size(const EVP_MD *md);
+  int EVP_MD_block_size(const EVP_MD *md);
+
+  const EVP_MD *EVP_MD_CTX_md(const EVP_MD_CTX *ctx);
+  #define EVP_MD_CTX_size(e)        EVP_MD_size(EVP_MD_CTX_md(e))
+  #define EVP_MD_CTX_block_size(e)  EVP_MD_block_size((e)->digest)
+  #define EVP_MD_CTX_type(e)        EVP_MD_type((e)->digest)
+
+  const EVP_MD *EVP_get_digestbyname(const char *name);
+  #define EVP_get_digestbynid(a) EVP_get_digestbyname(OBJ_nid2sn(a))
+  #define EVP_get_digestbyobj(a) EVP_get_digestbynid(OBJ_obj2nid(a))
+#+END_SRC
+
+- EVP_MD_size 和 EVP_MD_CTX_size ::
+这两个函数返回结构里面摘要信息的长度。
+
+- EVP_MD_block_size 和 EVP_MD_CTX_block_size ::
+这两个函数返回摘要信息分块的长度。
+
+- EVP_MD_type 和 EVP_MD_CTX_type ::
+这两个函数返回信息摘要结构算法的NID。
+例如,EVP_MD_type(EVP_sha1())返回NID_sha1。
+该函数通常在设置ASN1 OID的时候使用。
+如果算法不存在,返回NID_undef。
+
+- EVP_MD_CTX_md ::
+该函数返回给定EVP_MD_CTX结构里面的EVP_MD结构。
+
+- EVP_MD_pkey_type ::
+该函数返回信息摘要结构里面公钥签名算法的NID。
+例如,如果EVP_sha1是使用RSA签名算法,那么就会返回NID_sha1WithRSAEncryption。
+
+- EVP_md2、EVP_md5、EVP_sha、EVP_sha1、EVP_mdc2和EVP_ripemd160 ::
+这些函数返回相应名字的EVP_MD结构,它们都使用RSA算法作为签名算法。
+在新的程序里,一般推荐使用sha1算法。
+
+- EVP_dss和EVP_dss1 ::
+这两个函数返回的EVP_MD结构分别使用sha和sha1信息摘要算法,但是签名算法使用DSS（DSA）。
+
+- EVP_md_null ::
+该函数返回的信息摘要结构不作任何事情,返回的摘要信息长度为0。
+
+- EVP_get_digestbyname、EVP_get_digestbynid和EVP_get_digestbyobj ::
+这三个函数分别根据给定的算法名称、算法NID以及ASN1_OBJECT结构返回一个相应的EVP_MD算法结构。
+摘要算法在使用之前必须进行初始化,如使用Openssl_add_all_digests进行初始化。
+如果调用不成功,返回NULL。
+
+*** 3.2.3 摘要算法函数
+所在文件m_*.c。
+#+BEGIN_SRC c
+const EVP_MD *EVP_md_null(void);
+const EVP_MD *EVP_md2(void);
+const EVP_MD *EVP_md4(void);
+const EVP_MD *EVP_md5(void);
+
+const EVP_MD *EVP_sha(void);
+const EVP_MD *EVP_sha1(void);
+const EVP_MD *EVP_sha224(void);
+const EVP_MD *EVP_sha256(void);
+const EVP_MD *EVP_sha384(void);
+const EVP_MD *EVP_sha512(void);       
+
+const EVP_MD *EVP_dss(void);
+const EVP_MD *EVP_dss1(void);
+const EVP_MD *EVP_ecdsa(void);
+const EVP_MD *EVP_mdc2(void);
+const EVP_MD *EVP_ripemd160(void);
+const EVP_MD *EVP_whirlpool(void);
+#+END_SRC
+
+** 3.3 用法示例
+#+BEGIN_SRC c
+  static int OpenSSL_Digest(const char *digestname, 
+                            const unsigned char *in, int inlen,
+                            unsigned char *out, unsigned int *poutlen)
+  {
+      int rv = 0, n = 0;
+      char szErr[1024];
+
+      EVP_MD_CTX ctx;
+      const EVP_MD *md = NULL;
+
+      /* 初始化摘要计算上下文 */
+      EVP_MD_CTX_init(&ctx);
+
+      /* 根据摘要算法名称（如md5,sha1）获取摘要对象,使用openssl dgst -h命令可以查看支持的摘要算法名） */
+      md = EVP_get_digestbyname(digestname);
+      if (NULL == md) {
+          fprintf( stderr, "OpenSSL_Digest: Digest for %s is NULL\n", digestname );
+
+          rv = -1;
+          goto err;
+      }
+
+      /* 初始化摘要算法（如果使用Engine,此时会触发其实现的EVP_MD->init回调函数） */
+      if (!EVP_DigestInit(&ctx, md)) {
+          n  = ERR_get_error();
+          ERR_error_string( n, szErr );
+
+          fprintf( stderr, "OpenSSL_Cipher: EVP_DigestInit failed: \nopenssl return %d, %s\n", n, szErr );
+
+          rv = -3;
+          goto err;
+      }
+
+      /**
+       ,* 计算摘要（如果使用Engine,此时会触发其实现的EVP_MD->update回调函数）
+       ,* 对于连续的数据流,EVP_DigestUpdate一般会被调用多次 
+       ,*/
+      if (!EVP_DigestUpdate(&ctx, in, inlen)) {
+          n  = ERR_get_error();
+          ERR_error_string( n, szErr );
+
+          fprintf( stderr, "OpenSSL_Cipher: EVP_DigestUpdate failed: \nopenssl return %d, %s\n", n, szErr );
+
+          rv = -4;
+          goto err;
+      }
+
+      /* 输出摘要计算结果（如果使用Engine,此时会触发其实现的EVP_MD->cleanup回调函数） */
+      if (!EVP_DigestFinal(&ctx, out, poutlen)) {
+          n  = ERR_get_error();
+          ERR_error_string( n, szErr );
+
+          fprintf( stderr, "OpenSSL_Cipher: EVP_DigestFinal failed: \nopenssl return %d, %s\n", n, szErr );
+
+          rv = -5;
+          goto err;
+      }
+
+  err:    
+      /* 释放摘要计算上下文 */
+      EVP_MD_CTX_cleanup(&ctx);
+
+      return rv;
+  }
+#+END_SRC
+
+* 4. 非对称加密
+
+主要是以 p_开头的文件。其中:
+
+- p_enc.c :: 封装了公钥加密;
+- p_dec.c :: 封装了私钥解密;
+- p_lib.c :: 实现一些辅助函数;
+- p_sign.c :: 封装了签名函数;
+- p_verify.c :: 封装了验签函数;
+- p_seal.c :: 封装了数字信封;
+- p_open.c :: 封装了解数字信封。
+
+** 4.1 基本数据结构EVP_PKEY
+#+BEGIN_SRC c
+#include<openssl/evp.h>
+
+struct evp_pkey_st 
+{
+    int type;
+    int save_type;
+    int references;
+    const EVP_PKEY_ASN1_METHOD *ameth;
+    ENGINE *engine;
+    union 
+    {
+        char *ptr;
+        struct rsa_st *rsa;     /* RSA */
+        struct dsa_st *dsa;     /* DSA */
+        struct dh_st *dh;       /* DH */
+        struct ec_key_st *ec;   /* ECC */
+    } pkey;
+    int save_parameters;
+    STACK_OF(X509_ATTRIBUTE) *attributes; /* [ 0 ] */
+};
+#+END_SRC
+该结构用来存放非对称密钥信息,可以是RSA、DSA、DH 或ECC 密钥。其中,ptr 用来存放密钥结构地址,attributes 堆栈用来存放密钥属性。
+
+** 4.2 非对称加密
+所在文件evp.h、p_enc.c、p_dec.c 。
+
+*** 4.2.1 核心函数
+**** 4.2.1.1 加密
+#+BEGIN_SRC c
+  int EVP_PKEY_encrypt_old(unsigned char *enc_key,const unsigned char *key, 
+                           int key_len, EVP_PKEY *pubk) //RSA公钥加密 
+  int EVP_PKEY_encrypt_init(EVP_PKEY_CTX *ctx);
+  int EVP_PKEY_encrypt(EVP_PKEY_CTX *ctx,unsigned char *out, size_t *outlen,
+                       const unsigned char *in, size_t inlen);
+#+END_SRC
+
+- EVP_PKEY_encrypt_ini ::
+函数使用密钥pkey初始化公钥算法的上下文以进行加密操作。返回1成功,0或负值失败。特别地,返回值-2表示该公钥算法不支持该操作。
+
+- EVP_PKEY_encrypt ::
+函数使用ctx执行公钥加密操作。使用in和inlen参数指定要加密的数据。如果out为NULL,则输出缓冲区的最大大小写入outlen参数。如果out不为NULL,那么在调用之前,outlen参数应该包含out缓冲区的长度,如果调用成功,则将加密数据写入out,并将数据写入Outlen。返回1成功,0或负值失败。特别地,返回值-2表示该公钥算法不支持该操作。
+
+- EVP_PKEY_encrypt_old ::
+该函数默认调用RSA_public_encrypt使用公钥加密。
+
+**** 4.2.1.2 解密
+#+BEGIN_SRC c
+int EVP_PKEY_decrypt_old(unsigned char *dec_key, const unsigned char *enc_key, 
+                         int enc_key_len,EVP_PKEY *private_key);//RSA私钥解密
+int EVP_PKEY_decrypt_init(EVP_PKEY_CTX *ctx);
+int EVP_PKEY_decrypt(EVP_PKEY_CTX *ctx,unsigned char *out, size_t *outlen,
+                     const unsigned char *in, size_t inlen);
+#+END_SRC
+
+- EVP_PKEY_decrypt_ini ::
+函数使用密钥pkey初始化公钥算法的上下文以进行解密操作。返回1成功,0或负值失败。特别地,返回值-2表示该公钥算法不支持该操作。
+
+- EVP_PKEY_decrypt ::
+函数使用ctx执行公钥解操作。使用in和inlen参数指定要解密的数据。如果out为NULL,则输出缓冲区的最大大小写入outlen参数。如果out不为NULL,那么在调用之前,outlen参数应该包含out缓冲区的长度,如果调用成功,则将解密数据写入out,并将数据写入Outlen。返回1成功,0或负值失败。特别地,返回值-2表示该公钥算法不支持该操作。
+
+- EVP_PKEY_decrypt_old ::
+该函数默认调用RSA_private_encrypt使用私钥解密。
+
+*** 4.2.2 辅助函数
+#+BEGIN_SRC c
+#include <openssl/evp.h>
+EVP_PKEY_CTX *EVP_PKEY_CTX_new(EVP_PKEY *pkey, ENGINE *e);
+EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e);
+EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *ctx);
+void EVP_PKEY_CTX_free(EVP_PKEY_CTX *ctx);
+
+#include <openssl/evp.h>
+int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,int cmd, int p1, void *p2);
+int EVP_PKEY_CTX_ctrl_str(EVP_PKEY_CTX *ctx, const char *type,const char *value);
+
+#include <openssl/rsa.h>
+int EVP_PKEY_CTX_set_signature_md(EVP_PKEY_CTX *ctx, const EVP_MD *md);
+
+int EVP_PKEY_CTX_set_rsa_padding(EVP_PKEY_CTX *ctx, int pad);
+int EVP_PKEY_CTX_set_rsa_pss_saltlen(EVP_PKEY_CTX *ctx, int len);
+int EVP_PKEY_CTX_set_rsa_rsa_keygen_bits(EVP_PKEY_CTX *ctx, int mbits);
+int EVP_PKEY_CTX_set_rsa_keygen_pubexp(EVP_PKEY_CTX *ctx, BIGNUM *pubexp);
+
+#include <openssl/dsa.h>
+int EVP_PKEY_CTX_set_dsa_paramgen_bits(EVP_PKEY_CTX *ctx, int nbits);
+
+#include <openssl/dh.h>
+int EVP_PKEY_CTX_set_dh_paramgen_prime_len(EVP_PKEY_CTX *ctx, int len);
+int EVP_PKEY_CTX_set_dh_paramgen_generator(EVP_PKEY_CTX *ctx, int gen);
+
+#include <openssl/ec.h>
+int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx, int nid);
+
+#include <openssl/evp.h>
+void EVP_PKEY_CTX_set_cb(EVP_PKEY_CTX *ctx, EVP_PKEY_gen_cb *cb);
+EVP_PKEY_gen_cb *EVP_PKEY_CTX_get_cb(EVP_PKEY_CTX *ctx);
+#+END_SRC
+  EVP_PKEY_CTX_new（）函数使用pkey和ENGINE e中指定的算法分配公钥算法上下文。 
+  EVP_PKEY_CTX_new_id（）函数使用由id和ENGINE e指定的算法分配公钥算法上下文。 
+  EVP_PKEY_CTX_dup（）复制上下文ctx。 
+  EVP_PKEY_CTX_free（）释放上下文ctx。 
+  EVP_PKEY_CTX_new（）,EVP_PKEY_CTX_new_id（）,EVP_PKEY_CTX_dup（）返回新分配的EVP_PKEY_CTX结构,如果出现错误返回NULL。EVP_PKEY_CTX_free（）不返回值。
+
+#+BEGIN_SRC c
+        #include <openssl/evp.h>
+
+//将pkey所指的EVP_PKEY的密钥设置为key所指的密钥,成功返回1,失败返回0
+        int EVP_PKEY_set1_RSA(EVP_PKEY *pkey,RSA *key);
+        int EVP_PKEY_set1_DSA(EVP_PKEY *pkey,DSA *key);
+        int EVP_PKEY_set1_DH(EVP_PKEY *pkey,DH *key);
+        int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey,EC_KEY *key);
+
+//从pkey所指的EVP_PKEY中获取对应的密钥,失败返回NULL 
+        RSA *EVP_PKEY_get1_RSA(EVP_PKEY *pkey);
+        DSA *EVP_PKEY_get1_DSA(EVP_PKEY *pkey);
+        DH *EVP_PKEY_get1_DH(EVP_PKEY *pkey);
+        EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey);
+
+//将pkey所指的EVP_PKEY的密钥设置为key所指的密钥,但pkey释放时,key也会被释放成功返回1,失败返回0
+        int EVP_PKEY_assign(EVP_PKEY,int type ,void *key) 
+        int EVP_PKEY_assign_RSA(EVP_PKEY *pkey,RSA *key);
+        int EVP_PKEY_assign_DSA(EVP_PKEY *pkey,DSA *key);
+        int EVP_PKEY_assign_DH(EVP_PKEY *pkey,DH *key);
+        int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey,EC_KEY *key);
+
+//返回与type匹配的密钥的类型,EVP_PKEY_RSA, EVP_PKEY_DSA, EVP_PKEY_DH or EVP_PKEY_EC或者NID_undef
+        int EVP_PKEY_type(int type);
+
+        int EVP_PKEY_missing_parameters(const EVP_PKEY *pkey);
+        int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from);
+
+        int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b);
+        int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b);
+
+        int EVP_PKEY_derive_init(EVP_PKEY_CTX *ctx);
+        int EVP_PKEY_derive_set_peer(EVP_PKEY_CTX *ctx, EVP_PKEY *peer);
+        int EVP_PKEY_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen);
+
+         #include <openssl/evp.h>
+        int EVP_PKEY_get_default_digest_nid(EVP_PKEY *pkey, int *pnid);
+
+        int EVP_PKEY_keygen_init(EVP_PKEY_CTX *ctx);
+        int EVP_PKEY_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY **ppkey);
+        int EVP_PKEY_paramgen_init(EVP_PKEY_CTX *ctx);
+        int EVP_PKEY_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY **ppkey);
+
+        typedef int EVP_PKEY_gen_cb(EVP_PKEY_CTX *ctx);
+
+        int EVP_PKEY_CTX_get_keygen_info(EVP_PKEY_CTX *ctx, int idx);
+
+        void EVP_PKEY_CTX_set_app_data(EVP_PKEY_CTX *ctx, void *data);
+        void *EVP_PKEY_CTX_get_app_data(EVP_PKEY_CTX *ctx);
+
+        EVP_PKEY *EVP_PKEY_new(void);
+        void EVP_PKEY_free(EVP_PKEY *key);  
+
+        int EVP_PKEY_print_public(BIO *out, const EVP_PKEY *pkey,int indent, ASN1_PCTX *pctx);
+        int EVP_PKEY_print_private(BIO *out, const EVP_PKEY *pkey,int indent, ASN1_PCTX *pctx);
+        int EVP_PKEY_print_params(BIO *out, const EVP_PKEY *pkey,int indent, ASN1_PCTX *pctx);
+
+        int EVP_PKEY_sign_init(EVP_PKEY_CTX *ctx);
+        int EVP_PKEY_sign(EVP_PKEY_CTX *ctx,unsigned char *sig, size_t *siglen,
+                               const unsigned char *tbs, size_t tbslen);
+
+        int EVP_PKEY_verify_init(EVP_PKEY_CTX *ctx);
+        int EVP_PKEY_verify(EVP_PKEY_CTX *ctx, const unsigned char *sig, size_t siglen,
+                               const unsigned char *tbs, size_t tbslen);
+
+
+        int EVP_PKEY_verify_recover_init(EVP_PKEY_CTX *ctx);
+        int EVP_PKEY_verify_recover(EVP_PKEY_CTX *ctx,unsigned char *rout, size_t *routlen,
+                               const unsigned char *sig, size_t siglen);
+
+        int EVP_PKEY_get_default_digest_nid(EVP_PKEY *pkey, int *pnid);
+#+END_SRC
+
+*** 4.2.3 用法示例
+#+BEGIN_SRC c
+int OpenSSL_EncryptEx(EVP_PKEY *pPubKey,
+            const unsigned char *data, int data_cb, 
+            unsigned char* enc, unsigned int *penc_cb)
+{
+    int rv = 0, n = 0;
+    char szErr[1024];
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pPubKey);
+    rv = EVP_PKEY_encrypt(&ctx,enc, data, data_cb, pPubKey);
+    if (rv <= 0) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+        fprintf( stderr, "OpenSSL_Encrypt: EVP_PKEY_encrypt failed: \nopenssl return %d, %s\n", n, szErr );
+
+        rv = n;
+        goto enc_ret;
+    }
+
+    if (*penc_cb) {
+        *penc_cb = rv;
+    }
+
+    rv = 0;
+
+enc_ret:
+    return rv;
+}
+
+int OpenSSL_DecryptEx(EVP_PKEY *pPriKey,
+            unsigned char *enc, unsigned int enc_cb,
+            unsigned char *data, unsigned int *pdata_cb) 
+{
+    int rv = 0, n = 0;
+    char szErr[1024];
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pPriKey);
+
+    rv = EVP_PKEY_decrypt(&ctx, data, enc, enc_cb, pPriKey);
+    if (rv <= 0) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+        fprintf( stderr, "OpenSSL_Decrypt: EVP_PKEY_decrypt failed: \nopenssl return %d, %s\n", n, szErr );
+
+        rv = n;
+        goto enc_ret;
+    }
+
+    if (*pdata_cb) {
+        *pdata_cb = rv;
+    }
+
+    rv = 0;
+
+enc_ret:
+    return rv;
+}
+#+END_SRC
+
+* 5. BASE64编/解码
+
+EVP 提供了base64编码和解码的高级接口。
+Base 64编码将二进制数据转换为使用字符 A-Z,a-z,0-9,“+”和“/”表示来数据的可打印形式。
+每3个字节的二进制数据,编码为上诉4个字符表示的4字节数据。
+如果输入数据长度不是3的倍数,则输出数据将使用“=”字符在最后填充。
+
+** 5.1 base64编码原理
+
+首先将每三个字节原始2进制数据在一起展开; 
+然后6bit分为一个小组。每个小组前面补两个0,成为一个字节。 
+把新编码的每个字节转为十进制,根据base64标准转换表,找到对应的字符。 
+如果多了一个字节,则剩余两个字节用“=”填充,如果多了两个字节,则剩余一个字节用“=”填充。
+
+** 5.2 基本数据结构
+#+BEGIN_SRC c
+#include<openssl/evp.h>
+
+typedef struct evp_Encode_Ctx_st
+{
+     /* number saved in a partial encode/decode */
+     int num;
+
+     /*
+      * The length is either the output line length (in input bytes) or the
+      * shortest input line length that is ok.  Once decoding begins, the
+      * length is adjusted up each time a longer line is decoded
+      */
+     int length;
+     unsigned char enc_data[80];    //待编码的数据
+
+     int line_num;   /* number read on current line */
+     int expect_nl;
+} EVP_ENCODE_CTX;     
+#+END_SRC
+
+** 5.3 相关函数
+
+所在文件evp.h encode.c。
+
+*** 5.3.1 核心函数
+**** 5.3.1.1 编码
+#+BEGIN_SRC c
+#include <openssl/evp.h>
+
+void EVP_EncodeInit(EVP_ENCODE_CTX *ctx);
+void EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
+                      const unsigned char *in, int inl);
+void EVP_EncodeFinal(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl);
+
+int  EVP_EncodeBlock(unsigned char *t, const unsigned char *f, int n);
+#+END_SRC
+
+- EVP_EncodeInit ::
+初始化ctx以启动新的编码操作。无返回值。 
+
+- EVP_EncodeUpdate ::
+编码in指向的缓冲区中的inl字节数据。输出存储在缓冲区out中,输出的字节数存储在outl中。调用者必须确保out指向的缓冲区足够大以容纳输出数据。只有完整的数据块（48字节）可以被直接编码完后并通过函数输出。任何剩余的字节都保存在ctx对象中,并通过后续调用EVP_EncodeUpdate（）或EVP_EncodeFinal（）来处理。要计算所需的输出缓冲区大小,将inl的值与ctx中保留的未处理数据量相加,并将结果除以48（忽略任何余数）,这给出将要处理的数据块数。确保输出缓冲区包含每个块的65个字节的存储空间,因为编码后每64个字节将附加一个’\n’,outl计算时包含‘\n’,此外每一块编码后都会输出一个‘\0’终结符附加在“\n”后,下一次调用update或者final时将自动消去这个’\0’。可以重复调用EVP_EncodeUpdate（）来处理大量的输入数据。发生错误EVP_EncodeUpdate（）将outl设置为0。无返回值。 
+
+- EVP_EncodeFinal ::
+必须在编码操作结束时调用EVP_EncodeFinal（）。
+它将处理ctx对象中剩余的任何部分数据块。
+输出数据将被存储在out,输出的数据长度将存储在* outl中,包含了’\n’。
+调用者者有责任确保输出缓冲区足够大以容纳不超过65字节,因为有额外的‘\0’终结器（即总共6６个字节）的输出数据。,无返回值。 
+
+- EVP_EncodeBlock ::
+EVP_EncodeBlock（）对f中的输入数据进行编码,并将其存储在t中。对于每3字节的输入,将产生4字节的输出数据。如果n不能被3整除,则块被当做最后的数据块来编码,并且被填充,使得它总是可被除以4。另外还将添加‘\0’终结符字符。例如,如果提供16字节的输入数据,则创建24字节的编码数据,加上NUL终结器的1个字节（即总共25个字节）。从函数输出的长度包括’\0’。返回编码的字节数包括’\0’。
+
+**** 5.3.1.2 解码
+#+BEGIN_SRC c
+  #include <openssl/evp.h>
+
+  void EVP_DecodeInit(EVP_ENCODE_CTX *ctx);
+  int  EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
+                       const unsigned char *in, int inl);
+  int  EVP_DecodeFinal(EVP_ENCODE_CTX *ctx, unsigned
+                      char *out, int *outl);
+
+  int  EVP_DecodeBlock(unsigned char *t, const unsigned char *f, int n);
+#+END_SRC
+
+- EVP_DecodeInit ::
+初始化ctx以开始新的解码操作。 
+
+- EVP_DecodeUpdate ::
+解码in指向的缓冲区中inl字节的数据。
+输出存储在缓冲区中out,输出的字节数存储在* outl中。
+调用者有责任确保out指向的缓冲区足够大以容纳输出数据。
+该功能将尝试在4字节块中尽可能多地解码数据。
+任何空格,换行符或回车符都将被忽略。
+任何保留在结尾的未处理数据（1,2或3个字节）的部分块将保留在ctx对象中,并由后续调用EVP_DecodeUpdate()处理。
+如果遇到非法的base64字符,或者如果在数据中间遇到base64填充字符“=”,则函数返回-1表示错误。
+返回值为0或1表示数据成功处理。
+返回值0表示处理的最后输入数据字符包括base64填充字符“=”,因此预期不会再处理非填充字符数据。
+对于处理的每4个有效的64位字节（忽略空格,回车符和换行符）,将产生3字节的二进制输出数据或更少（在使用填充字符“=”的数据结尾处）。
+出错返回-1,成功返回0或1,如果返回0,则不再期待非base64的编码字符 
+
+- EVP_DecodeFinal ::
+必须在解码操作结束时调用EVP_DecodeFinal()。
+如果仍然存在任何未处理的数据,那么输入数据不能是4的倍数,因此发生错误。
+在这种情况下,函数返回-1。
+否则,该函数成功返回1。成功返回1,失败返回-1 
+
+- EVP_DecodeBlock ::
+EVP_DecodeBlock()将解码f中包含的基本64个数据的n个字节的块,并将结果存储在t中。
+任何前导空格将被修剪,如任何尾随的空格,换行符,回车符或EOF字符。
+在这样的修剪之后,f中的数据长度必须除以4.对于每4个输入字节,将产生3个输出字节。
+如果需要,输出将被填充0位,以确保每4个输入字节的输出始终为3个字节。返回解码的数据长度,出错返回-1。
+
+*** 5.3.2 辅助函数
+#+BEGIN_SRC c
+  EVP_ENCODE_CTX *EVP_ENCODE_CTX_new(void);
+  void EVP_ENCODE_CTX_free(EVP_ENCODE_CTX *ctx);
+  int EVP_ENCODE_CTX_copy(EVP_ENCODE_CTX *dctx, EVP_ENCODE_CTX *sctx)
+  int EVP_ENCODE_CTX_num(EVP_ENCODE_CTX *ctx);
+#+END_SRC
+
+- EVP_ENCODE_CTX_new ::
+分配,初始化并返回要用于encode / decode函数的上下文。成功返回地址,失败返回NULL。
+
+- VP_ENCODE_CTX_free ::
+清理编码/解码上下文ctx并释放分配给它的空间。
+二进制64位数据的编码是以48个输入字节（最后一个块为少）的块执行的。
+对于每个48字节的输入块,编码64字节的基本64个数据被输出加上一个附加的换行符（即总共65个字节）。
+最后一个块（可能小于48个字节）将为每3个字节的输入输出4个字节。
+如果数据长度不能被3整除,那么对于最后的1或2字节的输入,仍然输出一个完整的4个字节。
+同样也会输出换行符。 无返回值。
+
+- EVP_ENCODE_CTX_num ::
+返回在ctx对象中待处理的尚未编码或解码的字节数。
+
+* 6. 应用
+** 6.1 消息验证码HMAC
+
+HMAC是基于散列函数的MAC（消息认证码）,即用于消息认证的密钥哈希函数。
+#+BEGIN_SRC c
+unsigned char *HMAC(const EVP_MD *evp_md, const void *key,int key_len, 
+              const unsigned char *d, int n,unsigned char *md, unsigned int *md_len);
+
+void HMAC_CTX_init(HMAC_CTX *ctx);
+
+int HMAC_Init(HMAC_CTX *ctx, const void *key, int key_len,const EVP_MD *md);
+
+int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int key_len,const EVP_MD *md, ENGINE *impl);
+
+int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, int len);
+
+int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len);
+
+void HMAC_CTX_cleanup(HMAC_CTX *ctx);
+
+void HMAC_cleanup(HMAC_CTX *ctx);
+#+END_SRC
+HMAC是基于散列函数的MAC（消息认证码）,即用于消息认证的密钥哈希函数。
+
+HMAC（）使用哈希函数evp_md和key_len字节长的密钥键计算d字节的消息认证码。
+
+它将结果放在md（它必须有空格的哈希函数的输出,不超过EVP_MAX_MD_SIZE字节）。如果md为NULL,则将摘要放置在静态数组中。输出的大小放在md_len中,除非它为空。
+
+evp_md可以是EVP_sha1（）,EVP_ripemd160（）等
+
+HMAC_CTX_init（）在首次使用前初始化HMAC_CTX。必须调用
+
+HMAC_CTX_cleanup（）从HMAC_CTX中删除密钥和其他数据,并释放任何关联的资源。当不再需要HMAC_CTX时,必须调用它。
+
+HMAC_cleanup（）是HMAC_CTX_cleanup（）的别名,用于与0.9.6b的后向兼容性,不推荐使用。
+
+如果消息未完全存储在内存中,则可能会使用以下功能：
+
+HMAC_Init（）初始化HMAC_CTX结构以使用hash函数evp_md和key_len字节长的密钥。它已被弃用,仅适用于与OpenSSL 0.9.6b的向后兼容性。
+
+HMAC_Init_ex（）初始化或重用HMAC_CTX结构以使用函数evp_md和key key。可以是NULL,在这种情况下,现有的一个将被重用。 HMAC_CTX_init（）必须在此功能首次使用HMAC_CTX之前被调用。注： HMAC_Init（）在以前版本的OpenSSL中存在这种未记录的行为 - 在程序中未能切换到HMAC_Init_ex（）,这些程序期望它们会导致它们停止工作。
+
+HMAC_Update（）可以重复调用消息的大小块进行身份验证（数据中为len个字节）。
+
+HMAC_Final（）将消息认证码放在md中,它必须具有用于散列函数输出的空间。
+
+#+BEGIN_SRC c
+  # define HMAC_MAX_MD_CBLOCK      128/* largest known is SHA512 */
+
+  struct hmac_ctx_st {
+      const EVP_MD *md;
+      EVP_MD_CTX md_ctx;
+      EVP_MD_CTX i_ctx;
+      EVP_MD_CTX o_ctx;
+      unsigned int key_length;
+      unsigned char key[HMAC_MAX_MD_CBLOCK];
+  }/* HMAC_CTX*/;
+
+  # define HMAC_size(e)    (EVP_MD_size((e)->md))
+
+  void HMAC_CTX_init(HMAC_CTX *ctx);
+  void HMAC_CTX_cleanup(HMAC_CTX *ctx);
+
+  size_t HMAC_size(const HMAC_CTX *e);
+  HMAC_CTX *HMAC_CTX_new(void);
+  int HMAC_CTX_reset(HMAC_CTX *ctx);
+  void HMAC_CTX_free(HMAC_CTX *ctx);
+
+  /* deprecated */
+  # define HMAC_cleanup(ctx) HMAC_CTX_cleanup(ctx)
+
+  /* deprecated */
+  int HMAC_Init(HMAC_CTX *ctx, const void *key, int len, const EVP_MD *md);
+
+  int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len, const EVP_MD *md, ENGINE *impl);
+  int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, size_t len);
+  int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len);
+
+  unsigned char *HMAC(const EVP_MD *evp_md, const void *key, 
+                      int key_len,const unsigned char *d, size_t n, 
+                      unsigned char *md,unsigned int *md_len);                       
+
+  int HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx);
+  void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags);
+  const EVP_MD *HMAC_CTX_get_md(const HMAC_CTX *ctx);
+#+END_SRC
+
+** 6.2 数字签名
+
+所在文件evp.h、p_sign.c、p_verify.c。
+
+*** 6.2.1 签名
+
+EVP_Sign系列函数使用的基础结构跟信息摘要算法使用的基础结构是一样的,而且,其前面的两个操作步骤初始化和数据操作（信息摘要）也跟信息摘要算法是一样的,唯一不一样的是最后一步操作,
+本系列函数做了签名的工作,而信息摘要系列函数当然就只是简单的处理完摘要信息了事了。
+其实这是很容易理解的事情,因为签名算法就是在信息摘要之后用私钥进行签名的过程。本系列函数定义的如下(openssl/evp.h)：
+
+#+BEGIN_SRC c
+  int EVP_SignInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
+  int EVP_SignUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt);
+  int EVP_SignFinal(EVP_MD_CTX *ctx,unsigned char *sig,unsigned int *s, EVP_PKEY *pkey);
+
+  void EVP_SignInit(EVP_MD_CTX *ctx, const EVP_MD *type);
+  int EVP_PKEY_size(EVP_PKEY *pkey);
+#+END_SRC
+
+- EVP_SignInit_ex ::
+该函数是一个宏定义函数,其实际定义如下： 
+#define EVP_SignInit_ex(a,b,c) EVP_DigestInit_ex(a,b,c) 
+可见,该函数跟前面叙述的EVP_DigestInit_ex的功能和使用方法是一样的,都是使用ENGINE参数impl所代表的实现函数功能来设置结构ctx。
+在调用本函数前,参数ctx一定要经过EVP_MD_CTX_init函数初始化。详细使用方法参看前面的文章介绍。成功返回1,失败返回0。
+
+- EVP_SignUpdate ::
+该函数也是一个宏定义函数,其实际定义如下： 
+#define EVP_SignUpdate(a,b,c) EVP_DigestUpdate(a,b,c) 
+该函数使用方法和功能也跟前面介绍的EVP_DigestUpdate函数一样,将一个cnt字节的数据经过信息摘要运算存储到结构ctx中,该函数可以在一个相同的ctx中调用多次来实现对更多数据的信息摘要工作。
+成功返回1,失败返回0。
+
+- EVP_SignFinal ::
+该函数跟前面两个函数不同,这是签名系列函数跟信息摘要函数开始不同的地方,其实,该函数是将签名操作的信息摘要结构先调用EVP_MD_CTX_copy_ex函数拷贝一份,然后调用EVP_DigestFinal_ex完成信息摘要工作,然后开始对摘要信息用私钥pkey调用EVP_PKEY_sign_init 和EVP_PKEY_sign进行签名,并将签名信息保存在参数sig里面。
+如果参数s不为NULL,那么就会将签名信息数据的长度（单位字节）保存在该参数中,通常写入的数据是EVP_PKEY_size(key)。：q 
+因为操作的时候是拷贝了一份ctx,所以,原来的ctx结构还可以继续使用EVP_SignUpdate和EVP_SignFinal函数来完成更多信息的签名工作。不过,最后一定要使用EVP_MD_CTX_cleanup函数清除和释放ctx结构,否则就会造成内存泄漏。 
+此外,当使用DSA私钥签名的时候,一定要对产生的随机数进行种子播种工作（seeded),否则操作就会失败。RSA算法则不一定需要这样做。至于使用的签名算法跟摘要算法的关系,在EVP_Digest系列中已经有详细说明,这里不再重复。 
+本函数操作成功返回1,否则返回0。
+
+- EVP_SignInit ::
+本函数也是一个宏定义函数,其定义如下： 
+#define EVP_SignInit(a,b) EVP_DigestInit(a,b) 
+所以其功能和用法跟前面介绍的EVP_DigestInit函数完全一样,使用缺省实现的算法初始化算法结构ctx。
+
+- EVP_PKEY_size ::
+本函数返回一个签名信息的最大长度（单位字节）。实际签名信息的长度则由上述的函数EVP_SignFinal返回,有可能比这小。
+
+上述所有函数发生错误,可以使用ERR_get_error（）获取错误码,用ERR_error_String(err_NO,pstr)函数获得错误信息。
+
+*** 6.2.2 认证
+
+跟EVP_Sign系列函数一样,EVP_Verify系列函数的前两步（初始化和信息摘要处理）跟信息摘要算法是一样的,因为签名验证的过程就是先对信息进行信息摘要,然后再将发来的摘要信息用公钥解密后进行比较的过程,其定义如下（openssl/evp.h）：
+
+#+BEGIN_SRC c
+  int EVP_VerifyInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
+  int EVP_VerifyUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt);
+  int EVP_VerifyFinal(EVP_MD_CTX *ctx,unsigned char *sigbuf, unsigned int siglen,EVP_PKEY *pkey);
+
+  int EVP_VerifyInit(EVP_MD_CTX *ctx, const EVP_MD *type);
+#+END_SRC
+
+- EVP_VerifyInit_ex ::
+该函数是一个宏定义函数,其实际定义如下： 
+#define EVP_VerifyInit_ex(a,b,c) EVP_DigestInit_ex(a,b,c) 
+所以,其功能和使用方法跟前面介绍的EVP_DigestInit_ex函数是一样的。该函数使用参数impl所提供的算法库对验证结构ctx进行设置。在调用本函数之前,参数ctx必须经过调用EVP_MD_CTX_init进行初始化。成功返回1,失败返回0。 
+
+- EVP_VerifyUpdate ::
+该函数也是一个宏定义函数,其实际定义如下： 
+#define EVP_VerifyUpdate(a,b,c) EVP_DigestUpdate(a,b,c) 
+所以,其功能和使用方法跟前面介绍的EVP_DigestUpdate函数是相同的。该函数将参数d中的cnt字节数据经过信息摘要计算后保存到ctx中,该函数可以进行多次调用,以处理更多的数据。成功调用返回1,失败返回0。 
+
+- EVP_VerifyFinal ::
+该函数使用公钥pkey和ctx结构里面的信息验证sigbuf里面的数据的签名。事实上,该函数先调用EVP_MD_CTX_copy_ex函数将原来的ctx拷贝一份,然后调用EVP_DigestFinal_ex函数完成拷贝的ctx的信息摘要计算,最后才使用公钥pkey调用EVP_PKEY_verify_init 和EVP_PKEY_verify_进行签名的验证工作。 
+因为该函数实际上处理的是原来ctx函数的一个拷贝,所以原来的ctx结构还可以调用EVP_VerifyUpdate和EVP_VerifyFinal函数进行更多的数据处理和签名验证工作。 
+在使用完之后,ctx必须使用EVP_MD_CTX_cleanup函数释放内存,否则就会导致内存泄漏。 
+此外,至于信息摘要算法和签名算法的关联的关系,请参照信息摘要算法部分的说明。 
+该函数调用成功返回1,失败则返回0或－1。 
+
+- EVP_VerifyInit ::
+该函数使用缺省的实现算法对ctx结构进行初始化。也是一个宏定义函数,其定义如下： 
+#define EVP_VerifyInit(a,b) EVP_DigestInit(a,b) 
+所以跟EVP_DigestInit函数功能和用法是一样的。
+
+*** 6.2.3 用法示例
+#+BEGIN_SRC c
+static int OpenSSL_Sign(EVP_PKEY *pPriKey, 
+            unsigned char *data, int data_cb, 
+            unsigned char* sign, unsigned int *psign_cb )
+{
+    const EVP_MD *md = NULL;
+    EVP_MD_CTX md_sign_ctx;
+    int nRet = 0, n = 0;
+    char szErr[1024];
+
+    //根据密钥类型选择摘要算法
+    switch (pPriKey->type) {
+    case EVP_PKEY_EC:
+        md = EVP_ecdsa();
+        break;
+    default:
+        md = EVP_sha1();
+        break;
+    }
+
+    //摘要上下文初始化
+    if( !EVP_SignInit ( &md_sign_ctx, md ) ) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+        fprintf( stderr, "OpenSSL_Sign: EVP_SignInit failed: \nopenssl return %d, %s\n", n, szErr );
+
+        nRet = -1;
+        goto sign_ret;
+    }
+
+    //签名所需的摘要计算,如果有多段数据,可以多次调用EVP_SignUpdate
+    if( ! EVP_SignUpdate(&md_sign_ctx, data, data_cb) ) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+
+        fprintf( stderr,"OpenSSL_Sign: EVP_SignUpdate failed: \nopenssl return %d, %s\n", n, szErr );
+
+        nRet = -2;
+        goto sign_ret;
+    }
+
+    //计算签名
+    if( !EVP_SignFinal (&md_sign_ctx, 
+            sign, 
+            psign_cb, 
+            pPriKey ) ) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+
+        fprintf( stderr,"OpenSSL_Sign: EVP_SignFinal failed: \nopenssl return %d, %s\n", n, szErr );
+
+        nRet = -3;
+        goto sign_ret;
+    }
+
+sign_ret:
+    if( !EVP_MD_CTX_cleanup(&md_sign_ctx) ) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+        fprintf( stderr,"OpenSSL_Sign: EVP_ctx_cleanup failed: \nopenssl return %d, %s\n", n, szErr );
+    }
+
+    return nRet;
+}
+
+static int OpenSSL_Verify(EVP_PKEY *pPubKey, 
+              unsigned char *data, int data_cb, 
+              unsigned char* sign, unsigned int sign_cb )
+{
+    const EVP_MD *md = NULL;
+    EVP_MD_CTX md_sign_ctx, md_verify_ctx;
+    int nRet = 0, n = 0;
+    char szErr[1024];
+
+    //根据密钥类型选择摘要算法
+    switch (pPubKey->type) {
+    case EVP_PKEY_EC:
+        md = EVP_ecdsa();
+        break;
+    default:
+        md = EVP_sha1();
+        break;
+    }
+
+    //摘要上下文初始化
+    if( !EVP_VerifyInit( &md_verify_ctx, md ) ) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+
+        fprintf( stderr, "OpenSSL_Verify: EVP_VerifyInit failed: \nopenssl return %d, %s\n", n, szErr );
+
+        nRet = -4;
+        goto verify_ret;
+    }
+
+    //验签所需的摘要计算,如果有多段数据,可以多次调用EVP_VerifyUpdate
+    if( !EVP_VerifyUpdate(&md_verify_ctx, data, data_cb) ) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+
+        fprintf( stderr, "OpenSSL_Verify: EVP_VerifyUpdate failed: \nopenssl return %d, %s\n", n, szErr );
+
+        nRet = -5;
+        goto verify_ret;
+    }
+
+    //验证签名
+    if( !EVP_VerifyFinal(&md_verify_ctx, sign, sign_cb, pPubKey) ) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+
+        fprintf( stderr, "OpenSSL_Verify: EVP_VerifyFinal failed: \nopenssl return %d, %s\n", n, szErr );
+
+        nRet = -6;
+        goto verify_ret;
+    }
+
+verify_ret:
+    if( !EVP_MD_CTX_cleanup(&md_verify_ctx) ) {
+        n  = ERR_get_error();
+        ERR_error_string( n, szErr );
+        fprintf( stderr, "OpenSSL_Verify: EVP_ctx_cleanup failed: \nopenssl return %d, %s\n", n, szErr );
+    }
+
+    return nRet;
+}
+#+END_SRC
+
+** 6.3 数字信封
+
+所在文件evp.h、p_seal.c 、p_open.c。
+
+*** 6.3.1 写信
+
+seal系列函数是相当于完成一个电子信封的功能,它产生一个随机密钥,然后使用一个公钥对该密钥进行封装,数据可以使用该随机密钥进行对称加密。 
+信封加密在进行大量数据传输的时候是必须经常要用到的,因为公开密钥算法的加解密速度很慢,但对称算法就快多了。
+所以一般用公开密钥算法对产生的随机密钥加密,而真正进行数据加密则使用该随机密钥进行对称加密,然后将加密后的密钥与数据一起发送。 
+
+其定义的函数如下(openssl/evp.h) :
+
+#+BEGIN_SRC c
+  int EVP_SealInit(EVP_CIPHER_CTX *ctx, EVP_CIPHER *type, unsigned char **ek,
+                   int *ekl, unsigned char *iv,EVP_PKEY **pubk, int npubk);
+  int EVP_SealUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out,
+                     int *outl, unsigned char *in, int inl);
+  int EVP_SealFinal(EVP_CIPHER_CTX *ctx, unsigned char *out,int *outl);
+#+END_SRC
+
+- EVP_SealInit ::
+该函数初始化一个加密算法结构EVP_CIPHER_CTX,采用了指定的加密算法,使用一个随机密钥和初始化向量IV。
+事实上,该函数调用EVP_EncryptInit_ex函数两次完成了ctx结构的初始化工作。
+参数type是算法类型,跟签名介绍过的是一样的,为EVP_des_cbc类型的函数的返回值。
+随机密钥钥被一个或多个公钥加密,这就允许秘钥被公钥相应的私钥解密。
+参数ek是一个缓存序列,可以存放多个被公钥加密后的密钥的信息,所以每个缓存空间都应该足够大,比如ek[i]的缓存空间就必须为EVP_PKEY_size(pubk[i])那么大。
+每个被加密的随机密钥的长度保存在数字ekl中。
+参数pubk是一个公钥陈列,可以包含多个公钥。
+函数成功执行返回npubk,失败返回0。 
+因为该函数的密钥是随机产生的,随意在调用该函数之前,必须对随机数播种（seeded）。 
+使用的公钥必须是RSA,因为在openssl里面这是唯一支持密钥传输的公钥算法。
+因为该函数调用了EVP_PKEY_encrypt_old函数 
+跟EVP_EncryptInit函数一样,本函数也可以分为两次调用,第一次调用的时候要将参数npubk设为0,第二调用的时候就应该将参数type设为NULL。
+
+- EVP_SealUpdate ::
+
+该函数是一个宏定义函数,其实际定义如下： 
+#+BEGIN_SRC c
+  #define EVP_SealUpdate(a,b,c,d,e) EVP_EncryptUpdate(a,b,c,d,e) 
+#+END_SRC
+
+由此可见,其完成的功能和使用方法跟EVP_EncryptUpdate函数是一样的。细节参看前面介绍的文章。成功执行返回1,否则返回0。
+
+- EVP_SealFinal ::
+该函数简单调用了EVP_EncryptFinal_ex完成其功能,所以其完成的功能和使用参数也跟EVP_EncryptFinal_ex函数一样,细节请参考相关文章。
+唯一不一样的是,该函数还调用EVP_EncryptInit_ex(ctx,NULL,NULL,NULL,NULL)函数对ctx结构再次进行了初始化。成功返回1,否则返回0。
+
+*** 6.3.2 读信
+
+本系列函数相对于EVP_Seal系列函数,是进行信封加密的。它将公钥加密了的密钥加密出来,然后进行数据的解密。其定义的函数如下（openssl/evp.h）：
+
+#+BEGIN_SRC c
+  int EVP_OpenInit(EVP_CIPHER_CTX *ctx,EVP_CIPHER *type,unsigned char *ek,
+                   int ekl,unsigned char *iv,EVP_PKEY *priv);
+  int EVP_OpenUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out,
+                    int *outl, unsigned char *in, int inl);
+  int EVP_OpenFinal(EVP_CIPHER_CTX *ctx, unsigned char *out,int *outl);
+#+END_SRC
+
+- EVP_OpenInit ::
+该函数初始化一个用来加密数据的ctx结构。
+它首先使用参数priv指定的私钥解密参数ek里面长度为ekl字节的加密密钥。
+然后用此密钥与参数iv指定的初始化向量初始化EVP_CIPHER_CTX。
+如果参数type设定的加密算法长度是可变的,那么密钥长度就会被设置为解密得到的密钥的长度;如果加密算法长度是固定的,那么得到的解密密钥的长度就必须跟固定算法长度相同才行。
+成功执行返回密钥的长度,否则返回0。 
+跟函数EVP_DecryptInit一样,该函数也可以分成多次调用,首次调用应该将参数priv设置为NULL,再次调用的时候应该将type设置为NULL。
+
+- EVP_OpenUpdate ::
+该函数是一个宏定义函数,其实际定义如下： 
+#+BEGIN_SRC c
+  #define EVP_OpenUpdate(a,b,c,d,e) EVP_DecryptUpdate(a,b,c,d,e) 
+#+END_SRC
+所以,其功能和使用方法跟前面介绍过的EVP_DecryptUpdate相同,请参考相应的文章。成功执行返回1,否则返回0。
+
+- EVP_OpenFinal ::
+事实上,该函数调用EVP_DecryptFinal_ex完成了其功能,所以其使用方法跟功能跟函数EVP_DecryptFinal_ex是一样的,参考该函数说明就可以。
+唯一不同的是,本函数还调用EVP_DecryptInit_ex(ctx,NULL,NULL,NULL,NULL)再次进行了初始化工作。成功执行返回1,否则返回0。
+
+*** 6.3.3 用法示例
+#+BEGIN_SRC c
+  void TestPKCS7Enc(EVP_PKEY *pPriKey, X509 *x)
+  {
+      int rv = 0;
+      char szErr[1024] = {0};
+
+      STACK_OF(X509) *certs = sk_X509_new_null();
+      unsigned char data[32] = {0};
+      unsigned int data_cb = sizeof(data);
+      unsigned char enc[8192] = {0};
+      unsigned int enc_len = sizeof(enc);
+
+      unsigned int dec_len = sizeof(enc);
+      unsigned char *p = NULL;
+
+      PKCS7 *p7 = NULL;
+      BIO *in = BIO_new_mem_buf(data, data_cb);
+      BIO *out = BIO_new(BIO_s_mem());
+
+      RAND_pseudo_bytes(data, data_cb);
+      BIO_dump_fp(stdout, data, data_cb);
+
+      sk_X509_push(certs, x);
+      p7 = PKCS7_encrypt(certs, in, EVP_des_cbc(), PKCS7_BINARY);
+      if (NULL == p7) {
+          rv  = ERR_get_error();
+          ERR_error_string(rv, szErr);
+          fprintf( stderr, "TestPKCS7Enc: PKCS7_encrypt failed: \nopenssl return %d, %s\n", rv, szErr );
+
+          rv = -1;
+          goto err;
+      }
+
+      p = enc;
+      enc_len = i2d_PKCS7(p7, &p);
+
+      BIO_dump_fp(stdout, enc, enc_len);
+
+      if (!PKCS7_decrypt(p7, pPriKey, x, out, PKCS7_BINARY)) {
+          rv  = ERR_get_error();
+          ERR_error_string(rv, szErr);
+          fprintf( stderr, "TestPKCS7Enc: PKCS7_decrypt failed: \nopenssl return %d, %s\n", rv, szErr );
+
+          rv = -1;
+          goto err;
+      }
+
+      p = NULL;
+      dec_len = BIO_get_mem_data(out, &p);
+      BIO_dump_fp(stdout, p, dec_len);
+
+  err:
+      if (p7) {
+          PKCS7_free(p7);
+          p7 = NULL;
+      }
+
+      if (in) {
+          BIO_free(in);
+          in = NULL;
+      }
+
+      if (out) {
+          BIO_free(out);
+          in = NULL;
+      }
+
+      if (certs) {
+          sk_X509_free(certs);
+          certs = NULL;
+      }
+  }
+#+END_SRC

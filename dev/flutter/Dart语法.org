@@ -1,0 +1,32 @@
+#+title: Dart语法记录
+#+startup: showall
+
+* 函数可选参数
+** Optional named parameters（可选命名参数）
+
+在方法参数中，使用"{}"包围的参数属于可选命名参数
+
+#+BEGIN_SRC dart
+void buildThree(int num, {String name, int range = 10}) {
+}
+buildTree(1, name: "name");
+#+END_SRC
+
+** Optional positional parameters（可选位置参数）
+
+在方法参数中，使用"[]"包围的参数属于可选位置参数
+
+#+BEGIN_SRC dart
+void _buildHouse(int num, [String where, int range]) {
+}
+
+void _buildHouseAndDefaultValue(int num, [String where = 'Shanghai', int range]) {
+}
+
+_buildHouse(10,10); //不可行的
+_buildHouse(10,'shenzhen',10); //可行的
+_buildHouseAndDefaultValue(10,10); //不可行的
+_buildHouseAndDefaultValue(10,'shenzhen',10); //可行的
+#+END_SRC
+
+

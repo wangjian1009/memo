@@ -1,0 +1,24 @@
+#+TITLE: OpenSSL签名相关信息
+:PROPERTIES:
+#+startup: showall
+:END:
+
+* 基础知识
+- 常用的非对称加密算法有 RSA、DSA 等
+- 目前常用的摘要算法有 MD5、SHA-1、SHA-256 等
+- x509 数字证书结构定义
+- 根证书「ca_Cert」包含的内容：ca_KeyPub + ca_Info + enc_ca_Hash
+- 服务器证书「s_Cert」包含的内容：s_KeyPub + s_Info + ca_Info + enc_s_Hash
+- 二级认证机构证书「ca2_Cert」包含的内容：ca2_KeyPub + ca2_Info + ca_Info + enc_ca2_Hash
+- 服务器证书「s2_Cert」包含的内容：s2_KeyPub + s2_Info + ca2_Info + enc_s2_Hash
+
+- PKCS是pem key的存储格式
+  openssl 生成的 pem key 标准格式为 PKCS#1，一般 Java 服务器需要使用的格式为 PKCS#8。
+  区别：
+  1. PKCS#1：定义了 RSA 公钥函数的基本格式标准，特别是数字签名。它定义了数字签名如何计算，包括待签名数据和签名本身的格式；它也定义了 PSA 公/私钥的语法。
+  2. PKCS#8：私钥信息语法标准。PKCS#8 定义了私钥信息语法和加密私钥语法，其中私钥加密使用了PKCS#5 标准。
+
+* 参考代码
+- 生成证书 https://www.cnblogs.com/lsdb/p/9391979.html
+- [[./openssl-evp.org][EVP(高层接口)]]
+

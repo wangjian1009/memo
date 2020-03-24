@@ -1,0 +1,16 @@
+#+TITLE: 数字证书的签署
+
+以 RSA 证书为例进行说明，其他算法的证书可能会有所不同。
+
+3.1 根认证机构的构建
+
+简要流程
+
+1. 根认证机构「CA」生成公钥 ca_KeyPub 和私钥 ca_KeyPri，以及基本信息表 ca_Info。ca_Info 中一般包含了「CA」的名称、证书的有效期等信息。
+2. 根认证机构「CA」对（ca_KeyPub + ca_Info）进行散列运算，得到散列值 ca_Hash。
+3. 根认证机构「CA」使用其私钥 ca_KeyPri 对 ca_Hash 进行非对称加密，得到加密的散列值 enc_ca_Hash。
+4. 根认证机构「CA」将（ca_KeyPub + ca_Info + enc_ca_Hash）组合生成自签名的数字证书「ca_Cert」。这张证书称之为根证书。
+
+根证书「ca_Cert」包含的内容：ca_KeyPub + ca_Info + enc_ca_Hash。
+
+「ca_Cert」可用于签署下一级的证书。
