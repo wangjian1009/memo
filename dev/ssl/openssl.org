@@ -18,6 +18,15 @@
   1. PKCS#1：定义了 RSA 公钥函数的基本格式标准，特别是数字签名。它定义了数字签名如何计算，包括待签名数据和签名本身的格式；它也定义了 PSA 公/私钥的语法。
   2. PKCS#8：私钥信息语法标准。PKCS#8 定义了私钥信息语法和加密私钥语法，其中私钥加密使用了PKCS#5 标准。
 
+- 证书信息
+  - C :: 国家（Country Name）
+  - ST :: 省份（State or Province Name）
+  - L :: 城市（Locality Name）
+  - O :: 公司（Organization Name）
+  - OU :: 部门（Organizational Unit Name）
+  - CN :: 产品名（Common Name）
+  - emailAddress :: 邮箱（Email Address）
+
 * 参考代码
 - 生成证书 https://www.cnblogs.com/lsdb/p/9391979.html
 - [[./openssl-cert-generate-by-code.org][代码生成证书]]

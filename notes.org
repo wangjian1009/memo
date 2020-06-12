@@ -16,6 +16,7 @@
 ** [[http://gitlab.adups.com/VProject/Common-Documents][SFOX文档和问题库]]
 ** [[/ssh:guanggao@129.226.118.159#5022:/home/guanggao/workspace/Shadowfox-libev][矿机调试环境]]
 ** [[/ssh:gs_sysop@61.147.183.83#5022:/data/docker_jenkins/jenkins_home/workspace/upload_miner_package][Jenkins主节点]]
+** [[/ssh:sfox@172.16.30.24|docker:jenkins-android:/var/jenkins_home/workspace][客户端Jenkins节点]]
 ** [[/ssh:star@172.16.30.17:/home/star/workspace][少星的开发环境]]
 ** [[/ssh:admin@192.168.1.20:/][家庭路由器]]
 ** [[~/workspace/problem-mgr/server][开发问题管理]]
@@ -79,6 +80,7 @@ SCHEDULED: <2020-03-13 Fri>
 ** [[./dev/flutter/Flutter.org][Flutter]]
 ** [[./dev/typescript/Typescript.org][Typescript]]
 ** [[./dev/sql/sql.org][SQL]]
+** [[./dev/general/General.org][通用知识]]
 * 下一步
 ** NEXT 研究一下Emacs脑图的使用方法
 :PROPERTIES:
