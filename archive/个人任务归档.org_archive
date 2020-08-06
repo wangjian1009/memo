@@ -93,3 +93,35 @@ Archived entries from file /Users/wangjian/workspace/org/personal.org
    :END:
 - State "DONE"       from "TODO"       [2020-03-13 Fri 11:54]
 [2020-01-11 Sat]
+
+* DONE 创建OS X自带虚拟机引擎的docker machine
+  SCHEDULED: <2020-03-13 Fri>
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2020-07-13 Mon 17:08
+  :ARCHIVE_FILE: ~/workspace/org/notes.org
+  :ARCHIVE_OLPATH: 近期任务
+  :ARCHIVE_CATEGORY: 个人任务
+  :ARCHIVE_TODO: DONE
+  :END:
+- State "DONE"       from "INPROGRESS" [2020-03-16 Mon 09:33]
+
+* DONE 研究好DAP的使用方法，可以在crash后在文件中导航
+  :PROPERTIES:
+  :ARCHIVE_TIME: 2020-07-13 Mon 17:08
+  :ARCHIVE_FILE: ~/workspace/org/notes.org
+  :ARCHIVE_OLPATH: 近期任务
+  :ARCHIVE_CATEGORY: 个人任务
+  :ARCHIVE_TODO: DONE
+  :END:
+- State "DONE"       from "TODO"       [2020-03-16 Mon 09:33]
+
+* DONE 给Mac字典添加中英字典
+  :PROPERTIES:
+  :ID:       50C2CE00-BB0B-45EE-8127-0EC4953AB543
+  :ARCHIVE_TIME: 2020-07-13 Mon 17:08
+  :ARCHIVE_FILE: ~/workspace/org/notes.org
+  :ARCHIVE_OLPATH: 近期任务
+  :ARCHIVE_CATEGORY: 个人任务
+  :ARCHIVE_TODO: DONE
+  :END:
+- State "DONE"       from "TODO"       [2020-03-16 Mon 09:34]

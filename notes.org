@@ -10,6 +10,8 @@
 #+ARCHIVE: archive/个人任务归档.org_archive::
 :END:
 
+  64650503
+
 * 待分配
 * 备忘信息
 ** [[http://61.147.183.83:30080/][SFOX项目-WEB]]
@@ -25,23 +27,6 @@
 :PROPERTIES:
 :ID:       839BDE95-BF7D-4F17-97DF-FCFBA810EB75
 :END:
-** TODO [[../ledger/2019.ledger][完成2019年账务]]
-*** TODO 平 来往:张绮
-:PROPERTIES:
-:ID:       213C122E-4B3E-4CE5-9DA3-69A6EDCCC27F
-:END:
-  [2020-01-22 Wed]
-  [[file:~/workspace/ledger/2019.ledger::%E6%9D%A5%E5%BE%80:%E5%BC%A0%E7%BB%AE]]
-** DONE 创建OS X自带虚拟机引擎的docker machine
-SCHEDULED: <2020-03-13 Fri>
-- State "DONE"       from "INPROGRESS" [2020-03-16 Mon 09:33]
-** DONE 研究好DAP的使用方法，可以在crash后在文件中导航
-- State "DONE"       from "TODO"       [2020-03-16 Mon 09:33]
-** DONE 给Mac字典添加中英字典
-:PROPERTIES:
-:ID:       50C2CE00-BB0B-45EE-8127-0EC4953AB543
-:END:
-- State "DONE"       from "TODO"       [2020-03-16 Mon 09:34]
 ** [#B] [2/6] 邮箱环境搭建完整
 *** TODO 组织好邮箱的目录结构
 :PROPERTIES:

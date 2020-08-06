@@ -1,11 +1,29 @@
 #+TITLE: 常用操作
 
-#+BEGIN_SRC bash :exports none
-curl -H 'Content-Type:application/json' -X POST --data '{ "userId": "19386", "nu": -300, "vip": 0 }' http://61.147.183.84/finance/balance/inner-reward
-curl -H 'Content-Type:application/json' -X DELETE --data '{ "userId": 19386 }' http://61.147.183.84/climb/userTask
+*** 用户相关操作
+:PROPERTIES:
+:header-args: :var user-id=19386 :host 61.147.183.84 :pretty
+:END:
+**** 修改资产
+#+BEGIN_SRC http
+POST /finance/balance/inner-reward
+Content-Type:application/json
+
+{ "userId": "${user-id}", "nu": -300, "vip": 0 }
 #+END_SRC
 
+**** 清理任务
+#+BEGIN_SRC http
+DELETE /climb/userTask
+Content-Type:application/json'
 
+{ "userId": ${user-id} }
+#+END_SRC
+
+#+RESULTS:
+: 17
+
+* 其他
 #+BEGIN_SRC bash :exports none
 bundletool build-apks --bundle=~/Downloads/85.aab --output=~/Downloads/coolline-85.apks --overwrite --mode=universal --ks=~/workspace/vchain/client_android/app-coolline/shadowfox.jks --ks-pass=pass:123456 --ks-key-alias=shadowfox --key-pass=pass:android
 #+END_SRC
