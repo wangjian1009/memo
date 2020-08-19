@@ -9,8 +9,15 @@
 POST /finance/balance/inner-reward
 Content-Type:application/json
 
-{ "userId": "${user-id}", "nu": -300, "vip": 0 }
+{ "userId": "${user-id}", "nu": 0, "vip": -2332800 }
 #+END_SRC
+
+#+RESULTS:
+: {
+:   "code": 200,
+:   "message": "SUCCESS",
+:   "data": null
+: }
 
 **** 清理任务
 #+BEGIN_SRC http
@@ -20,10 +27,18 @@ Content-Type:application/json'
 { "userId": ${user-id} }
 #+END_SRC
 
-#+RESULTS:
-: 17
+**** 清理订阅
 
-* 其他
+#+BEGIN_SRC http
+POST /order-svc/subscriptions/clear
+Content-Type:application/json'
+
+{ "userId": ${user-id} }
+#+END_SRC
+
+#+RESULTS:
+
+*** 其他
 #+BEGIN_SRC bash :exports none
 bundletool build-apks --bundle=~/Downloads/85.aab --output=~/Downloads/coolline-85.apks --overwrite --mode=universal --ks=~/workspace/vchain/client_android/app-coolline/shadowfox.jks --ks-pass=pass:123456 --ks-key-alias=shadowfox --key-pass=pass:android
 #+END_SRC
