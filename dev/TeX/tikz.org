@@ -1,0 +1,33 @@
+#+TITLE: Tikz绘图命令收集
+
+** 函数图像
+
+TikZ可以画很多函数图像，例如一次函数，二次函数，三角函数，以及其他能够用表达式表达的函数。
+使用的命令是：
+#+begin_src latex
+\draw[domain=参数：范围] plot（x,y）
+#+end_src
+其中domain指明了参数范围，用冒号隔开。plot（f(x),f(y)）指明参数方程。
+
+- 一次函数参数方程 $\begin{cases} x=t\\ y=at+b \end{cases}$
+- 二次函数参数方程 $\begin{cases} x=t\\ y=at^2+bx+c \end{cases}$
+- 圆参数方程 $\begin{cases} x=r * cos(t)\\ y=r * sign(t) \end{cases}$  其中 $t$ 是参数，$r$ 是半径
+- 椭圆的参数方程 $\begin{cases} x=a * cos(t)\\ y=b * sign(t) \end{cases}$  其中 $t$ 是参数，$a$ 是长轴，$b$ 是短轴
+
+
+#+begin_src latex
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{pgfplots}
+\usepackage{ctex}
+
+\begin{document}
+\begin{tikzpicture}
+%画x和y轴坐标
+\draw[<->](3.2,0)--(0,0)--(0,3.2);
+\draw(0,0)--(-1,0);
+\draw[red,domain=-0.2:0.8] plot(\x,4*\x) node at (0.8,3.5){$y=4x$};
+\draw[blue,domain=-1:1] plot(\x,2*\x*\x) node at (1.1,2.2){$y=x^2$};
+\draw[cyan,domain=-1:2,smooth] plot(\x,{0.3*sin(4*\x r)}) node at (2.3,0.6){$y=0.3sin(4x)$};
+\end{tikzpicture}
+\end{document}
+#+end_src

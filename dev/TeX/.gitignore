@@ -1,0 +1,8 @@
+/auto
+/ltximg
+*.aux
+*.log
+*.out
+*.pdf
+*.toc
+*.tex

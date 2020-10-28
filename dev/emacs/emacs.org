@@ -1,6 +1,6 @@
 #+TITLE: Emacs相关信息收集
 :PROPERTIES:
-#+STARTUP: showall
+#+STARTUP: showallw
 :END:
 
 ** 重要信息
