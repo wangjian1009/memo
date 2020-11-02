@@ -9,7 +9,7 @@
 POST /finance/balance/inner-reward
 Content-Type:application/json
 
-{ "userId": "${user-id}", "nu": 0, "vip": -2332800 }
+{ "userId": "${user-id}", "nu": -20, "vip": 0 }
 #+END_SRC
 
 #+RESULTS:
@@ -26,6 +26,9 @@ Content-Type:application/json'
 
 { "userId": ${user-id} }
 #+END_SRC
+
+#+RESULTS:
+: 6
 
 **** 清理订阅
 

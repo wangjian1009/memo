@@ -31,3 +31,20 @@ TikZ可以画很多函数图像，例如一次函数，二次函数，三角函�
 \end{tikzpicture}
 \end{document}
 #+end_src
+
+** 几何绘图
+
+*** 画垂足
+#+begin_src latex
+\begin{tikzpicture}
+\coordinate[label=left:$A$] (a) at (0,0);
+\coordinate[label=right:$B$] (b) at (4,3);
+\coordinate[label=below:$D$] (d) at ($ (a)!.36!(b) $); %% ($ (a)!.36!(b) $) 是从 a 到 b 的 36% 的位置
+\coordinate[label=above:$C$] (c) at ($ (d)!2.4cm!90:(b) $); %% ($ (d)!2.4cm!90:(b) $) 是线段 db 绕 d 旋转 90 度方向, 到 d 长度为 2.4cm 的位置
+
+\draw (a) -- (b) -| cycle
+(c) -- node [sloped,above] {2.4cm} (d)
+pic [draw, angle radius = 3mm] {right angle = b--d--c};
+\end{tikzpicture}
+#+end_src
+
