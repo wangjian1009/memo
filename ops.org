@@ -2,14 +2,14 @@
 
 *** 用户相关操作
 :PROPERTIES:
-:header-args: :var user-id=19386 :host 61.147.183.84 :pretty
+:header-args: :var user-id=19466 :host 61.147.183.84 :pretty
 :END:
 **** 修改资产
 #+BEGIN_SRC http
 POST /finance/balance/inner-reward
 Content-Type:application/json
 
-{ "userId": "${user-id}", "nu": 0, "vip": -2592000 }
+{ "userId": "${user-id}", "nu": -2, "vip": 0 }
 #+END_SRC
 
 #+RESULTS:
@@ -22,24 +22,27 @@ Content-Type:application/json
 **** 清理任务
 #+BEGIN_SRC http
 DELETE /climb/userTask
-Content-Type:application/json'
+Content-Type:application/json
 
 { "userId": ${user-id} }
 #+END_SRC
 
 #+RESULTS:
-: 6
+: 2
 
 **** 清理订阅
 
 #+BEGIN_SRC http
 POST /order-svc/subscriptions/clear
-Content-Type:application/json'
+Content-Type:application/json
 
 { "userId": ${user-id} }
 #+END_SRC
 
 #+RESULTS:
+: {
+:   "state": "success"
+: }
 
 *** 其他
 #+BEGIN_SRC bash :exports none
